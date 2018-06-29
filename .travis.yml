@@ -27,6 +27,10 @@ before_script:
   - docker build -f ./build/Dockerfile.ubuntu .
   - docker build -f ./build/Dockerfile.alpine .
 
+  # Commit all the changes made to the repository
+  - git add .
+  - git commit --author="Péter Szilágyi <peterke@gmail.com>" -m "Updated libtor dependencies"
+
 script:
   # Everything seems ok, push the master branch back to GitHub
   - git push upstream master
