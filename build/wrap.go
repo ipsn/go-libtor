@@ -223,7 +223,7 @@ func wrapLibevent(nobuild bool) (string, error) {
 		fmt.Println(string(out))
 		return "", err
 	}
-	deps := regexp.MustCompile("source='([a-z_]+)\\.c'").FindAllStringSubmatch(string(out), -1)
+	deps := regexp.MustCompile(" ([a-z_]+)\\.lo;").FindAllStringSubmatch(string(out), -1)
 
 	// Wipe everything from the library that's non-essential
 	files, err := ioutil.ReadDir("libevent")
