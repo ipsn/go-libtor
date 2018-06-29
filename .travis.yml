@@ -1,0 +1,29 @@
+language: go
+
+go: 1.10.x
+
+services:
+  - docker
+
+install: true
+
+before_script:
+  # Configure the SSH key to pull and push the repository
+  - echo $GITHUB_PUSH_KEY | base64 -d > ~/.ssh/id_rsa
+  - chmod 0600 ~/.ssh/id_rsa
+
+  # Switch the entire repository over to master
+  - git remote add upstream git@github.com:ipsn/go-libtor.git
+  - git fetch upstream
+  - git checkout master
+
+  # Update anything enw and wrap the libraries
+  - go run build/wrap.go --nobuild
+
+  # Ensure we can build the library both on libc and musl
+  - docker build -f ./build/Dockerfile.ubuntu .
+  - docker build -f ./build/Dockerfile.alpine .
+
+script:
+  # Everything seems ok, push the master branch back to GitHub
+  - git push upstream master

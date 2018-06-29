@@ -1,0 +1,4 @@
+FROM golang:latest
+
+ADD . $GOPATH/src/github.com/ipsn/go-tor
+RUN cd $GOPATH/src/github.com/ipsn/go-tor && go install -v -x
