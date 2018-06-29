@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -43,21 +44,35 @@ func main() {
 		}
 	}
 	// Wrap each of the component libraries into megator
-	if _, err := wrapZlib(*nobuild); err != nil {
+	zlib, err := wrapZlib(*nobuild)
+	if err != nil {
 		panic(err)
 	}
-	if _, err := wrapLibevent(*nobuild); err != nil {
+	libevent, err := wrapLibevent(*nobuild)
+	if err != nil {
 		panic(err)
 	}
-	if _, err := wrapOpenSSL(*nobuild); err != nil {
+	openssl, err := wrapOpenSSL(*nobuild)
+	if err != nil {
 		panic(err)
 	}
-	if _, err := wrapTor(*nobuild); err != nil {
+	tor, err := wrapTor(*nobuild)
+	if err != nil {
 		panic(err)
 	}
-	// Copy in the tor entrypoint wrapper
+	// Copy in the tor entrypoint wrapper, fill out the readme template
 	blob, _ := ioutil.ReadFile(filepath.Join("build", "libtor.go.in"))
 	ioutil.WriteFile("libtor.go", blob, 0644)
+
+	tmpl := template.Must(template.ParseFiles(filepath.Join("build", "README.md")))
+	buf := new(bytes.Buffer)
+	tmpl.Execute(buf, map[string]string{
+		"zlib":     zlib,
+		"libevent": libevent,
+		"openssl":  openssl,
+		"tor":      tor,
+	})
+	ioutil.WriteFile("README.md", buf.Bytes(), 0644)
 }
 
 // wrapZlib clones the zlib library into the local repository and wraps it into
@@ -86,6 +101,8 @@ func wrapZlib(nobuild bool) (string, error) {
 		fmt.Println(string(commit))
 		return "", err
 	}
+	commit = bytes.TrimSpace(commit)
+
 	// Wipe everything from the library that's non-essential
 	files, err := ioutil.ReadDir("zlib")
 	if err != nil {
@@ -178,6 +195,8 @@ func wrapLibevent(nobuild bool) (string, error) {
 		fmt.Println(string(commit))
 		return "", err
 	}
+	commit = bytes.TrimSpace(commit)
+
 	// Configure the library for compilation
 	autogen := exec.Command("./autogen.sh")
 	autogen.Dir = "libevent"
@@ -330,8 +349,10 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 		fmt.Println(string(commit))
 		return "", err
 	}
+	commit = bytes.TrimSpace(commit)
+
 	// Configure the library for compilation
-	config := exec.Command("./config", "no-shared", "no-dso", "no-zlib", "no-asm", "no-async")
+	config := exec.Command("./config", "no-shared", "no-dso", "no-zlib", "no-asm", "no-async", "no-sctp")
 	config.Dir = "openssl"
 	config.Stdout = os.Stdout
 	config.Stderr = os.Stderr
@@ -469,6 +490,8 @@ func wrapTor(nobuild bool) (string, error) {
 		fmt.Println(string(commit))
 		return "", err
 	}
+	commit = bytes.TrimSpace(commit)
+
 	// Configure the library for compilation
 	autogen := exec.Command("./autogen.sh")
 	autogen.Dir = "tor"

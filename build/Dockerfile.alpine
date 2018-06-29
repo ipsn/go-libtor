@@ -2,5 +2,5 @@ FROM golang:alpine
 
 RUN apk add --no-cache gcc musl-dev linux-headers
 
-ADD . $GOPATH/src/github.com/ipsn/go-tor
-RUN cd $GOPATH/src/github.com/ipsn/go-tor && go install -v -x
+ADD . $GOPATH/src/github.com/ipsn/go-libtor
+RUN cd $GOPATH/src/github.com/ipsn/go-libtor && go install -v -x
