@@ -8,6 +8,9 @@ services:
 install: true
 
 before_script:
+  # Install Tor dependencies for autoconf, we won't actually use them
+  - sudo apt-get install -y libevent-dev zlib1g-dev
+
   # Configure the SSH key to pull and push the repository
   - echo $GITHUB_PUSH_KEY | base64 -d > ~/.ssh/id_rsa
   - chmod 0600 ~/.ssh/id_rsa
