@@ -478,7 +478,7 @@ func wrapTor(nobuild bool) (string, error) {
 	if err := autogen.Run(); err != nil {
 		return "", err
 	}
-	configure := exec.Command("./configure", "--disable-gcc-hardening")
+	configure := exec.Command("./configure", "--disable-asciidoc")
 	configure.Dir = "tor"
 	configure.Stdout = os.Stdout
 	configure.Stderr = os.Stderr
