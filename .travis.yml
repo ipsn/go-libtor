@@ -29,7 +29,7 @@ before_script:
 
   # Commit all the changes made to the repository
   - git add .
-  - git commit --author="Péter Szilágyi <peterke@gmail.com>" -m "Updated libtor dependencies"
+  - if [ -n "$(git status --porcelain)" ]; then git commit --author="Péter Szilágyi <peterke@gmail.com>" -m "Updated libtor dependencies"; fi
 
 script:
   # Everything seems ok, push the master branch back to GitHub
