@@ -33,7 +33,7 @@ before_script:
 
   # Ensure we can build the library on arm and arm64
   - go get -u github.com/karalabe/xgo
-  - xgo -v -x --targets=linux/arm-7,linux/arm64 .
+  - xgo --targets=linux/arm-7,linux/arm64 .
 
 script:
   # Everything seems ok, push the master branch back to GitHub
