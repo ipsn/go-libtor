@@ -11,7 +11,10 @@ The `go-libtor` project is a self-contained, fully statically linked Tor library
 | openssl  | [`a80f76aff4e0be3f5738cf9b292f940dc06a0e2a`](https://github.com/openssl/openssl/commit/a80f76aff4e0be3f5738cf9b292f940dc06a0e2a)     |
 | tor      | [`b22b60365f2d7db2db31128fa733c67d6f52fb8c`](https://gitweb.torproject.org/tor.git/commit/?id=b22b60365f2d7db2db31128fa733c67d6f52fb8c)      |
 
-The library currently is supported on Linux `amd64`, `386`, `arm64` and `arm`; both with `libc` and `musl`. More platforms will be added as I get to them, but my priorities are around Linux derivatives.
+The library is currently supported on:
+
+ - Linux `amd64`, `386`, `arm64` and `arm`; both with `libc` and `musl`.
+ - Android `amd64`, `386`, `arm64` and `arm`; specifically via `gomobile`.
 
 ## Installation
 

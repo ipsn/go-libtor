@@ -1,7 +1,7 @@
-#ifdef ARCH_AMD64
-  #include "internal/bn_conf.amd64.h"
+#if defined(ARCH_LINUX64) || defined(ARCH_ANDROID64)
+  #include "internal/bn_conf.x64.h"
 #endif
 
-#ifdef ARCH_386
-  #include "internal/bn_conf.386.h"
+#if defined(ARCH_LINUX32) || defined(ARCH_ANDROID32)
+  #include "internal/bn_conf.x86.h"
 #endif
