@@ -7,6 +7,9 @@ package libtor
 // This file is a simplified clone from github.com/cretz/bine/process/embedded.
 
 /*
+#cgo amd64 arm64 CFLAGS: -DARCH_AMD64
+#cgo 386 arm     CFLAGS: -DARCH_386
+
 #include <stdlib.h>
 #include <or/tor_api.h>
 

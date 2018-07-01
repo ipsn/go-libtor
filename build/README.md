@@ -11,7 +11,7 @@ The `go-libtor` project is a self-contained, fully statically linked Tor library
 | openssl  | [`{{.openssl}}`](https://github.com/openssl/openssl/commit/{{.openssl}})     |
 | tor      | [`{{.tor}}`](https://gitweb.torproject.org/tor.git/commit/?id={{.tor}})      |
 
-The library currently is supported on Linux `amd64`, both with `libc` and `musl`. More platforms will be added as I get to them, but my priorities are around Linux derivatives.
+The library currently is supported on Linux `amd64`, `386`, `arm64` and `arm`; both with `libc` and `musl`. More platforms will be added as I get to them, but my priorities are around Linux derivatives.
 
 ## Installation
 

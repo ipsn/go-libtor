@@ -23,13 +23,17 @@ before_script:
   # Update anything enw and wrap the libraries
   - go run build/wrap.go --nobuild
 
-  # Ensure we can build the library both on libc and musl
-  - docker build -f ./build/Dockerfile.ubuntu .
-  - docker build -f ./build/Dockerfile.alpine .
-
   # Commit all the changes made to the repository
   - git add .
   - if [ -n "$(git status --porcelain)" ]; then git commit --author="Péter Szilágyi <peterke@gmail.com>" -m "Updated libtor dependencies"; fi
+
+  # Ensure we can build the library both on libc and musl (amd64)
+  - docker build -f ./build/Dockerfile.ubuntu .
+  - docker build -f ./build/Dockerfile.alpine .
+
+  # Ensure we can build the library on arm and arm64
+  - go get -u github.com/karalabe/xgo
+  - xgo -v -x --targets=linux/arm-7,linux/arm64 .
 
 script:
   # Everything seems ok, push the master branch back to GitHub
