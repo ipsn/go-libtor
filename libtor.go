@@ -30,11 +30,15 @@ static void freeCharArray(char **a, int size) {
 */
 import "C"
 import (
+	"context"
+	"errors"
 	"fmt"
+
+	"github.com/cretz/bine/process"
 )
 
-// Start creates a new tor process, returning a termination channel.
-func Start(args ...string) (chan int, error) {
+// start creates a new tor process, returning a termination channel.
+func start(args ...string) (chan int, error) {
 	// Create the char array for the args
 	args = append([]string{"tor"}, args...)
 
@@ -57,4 +61,58 @@ func Start(args ...string) (chan int, error) {
 		done <- int(C.tor_run_main(config))
 	}()
 	return done, nil
+}
+
+// Creator implements the bine.process.Creator, permitting libtor to act as an API
+// backend for the bine/tor Go interface.
+var Creator process.Creator = new(embeddedCreator)
+
+// embeddedCreator implements process.Creator, permitting libtor to act as an API
+// backend for the bine/tor Go interface.
+type embeddedCreator struct{}
+
+// New implements process.Creator, creating a new embedded tor process.
+func (embeddedCreator) New(ctx context.Context, args ...string) (process.Process, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return &embeddedProcess{ctx: ctx, args: args}, nil
+}
+
+// embeddedProcess implements process.Process, permitting libtor to act as an API
+// backend for the bine/tor Go interface.
+type embeddedProcess struct {
+	ctx  context.Context
+	args []string
+	done chan int
+}
+
+// Start implements process.Process, starting up the libtor embedded process.
+func (e *embeddedProcess) Start() error {
+	if e.done != nil {
+		return errors.New("already started")
+	}
+	done, err := start(e.args...)
+	if err != nil {
+		return err
+	}
+	e.done = done
+	return nil
+}
+
+// Wait implements process.Process, blocking until the embedded process terminates.
+func (e *embeddedProcess) Wait() error {
+	if e.done == nil {
+		return errors.New("not started")
+	}
+	select {
+	case <-e.ctx.Done():
+		return e.ctx.Err()
+
+	case code := <-e.done:
+		if code == 0 {
+			return nil
+		}
+		return fmt.Errorf("embedded tor failed: %v", code)
+	}
 }
