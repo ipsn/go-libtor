@@ -24,33 +24,37 @@ The goal of this library is to be a self-contained Tor package for Go. As such, 
 $ go get -u -v -x github.com/ipsn/go-libtor
 ```
 
+You'll also need the [`bine`](https://github.com/cretz/bine) bindings to interface with the library:
+
+```
+go get -u github.com/cretz/bine/tor
+```
+
 ## Usage
 
-The `go-libtor` project does not contain a full Go API to interface Tor with, rather only the smallest building block to start up an embedded instance. The reason for not providing more is because there is already a solid Go project out there ([github.com/cretz/bine](https://godoc.org/github.com/cretz/bine/tor)) which focuses on interfacing.
+The `go-libtor` project does not contain a full Go API to interface Tor with, rather only the smallest building block to start up an embedded instance. The reason is because there is already a solid Go project out there ([github.com/cretz/bine](https://github.com/cretz/bine/tor)) which focuses on interfacing.
 
-Using both project in combination however is fairly straightforward:
+Using both projects in combination however is straightforward:
 
 ```go
 package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/cretz/bine/process"
 	"github.com/cretz/bine/tor"
 	"github.com/ipsn/go-libtor"
 )
 
 func main() {
-	// Start tor with soem defaults + elevated verbosity
+	// Start tor with some defaults + elevated verbosity
 	fmt.Println("Starting and registering onion service, please wait a bit...")
-	t, err := tor.Start(nil, &tor.StartConf{ProcessCreator: NewCreator(), DebugWriter: os.Stderr, NoHush: true})
+	t, err := tor.Start(nil, &tor.StartConf{ProcessCreator: libtor.Creator, DebugWriter: os.Stderr})
 	if err != nil {
 		log.Panicf("Failed to start tor: %v", err)
 	}
@@ -67,73 +71,35 @@ func main() {
 	}
 	defer onion.Close()
 
-	fmt.Printf("Open Tor browser and navigate to http://%v.onion\n", onion.ID)
+	fmt.Printf("Please open a Tor capable browser and navigate to http://%v.onion\n", onion.ID)
 
-	// Run a Hello World HTTP service until terminated
+	// Run a Hello-World HTTP service until terminated
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello, Tor!")
 	})
 	http.Serve(onion, nil)
 }
-
-// embeddedCreator implements process.Creator, permitting libtor to act as an API
-// backend for the bine/tor Go interface.
-type embeddedCreator struct{}
-
-// NewCreator creates a process.Creator for statically linked Tor embedded in the
-// binary.
-func NewCreator() process.Creator {
-	return embeddedCreator{}
-}
-
-// New implements process.Creator, creating a new embedded tor process.
-func (embeddedCreator) New(ctx context.Context, args ...string) (process.Process, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return &embeddedProcess{ctx: ctx, args: args}, nil
-}
-
-// embeddedProcess implements process.Process, permitting libtor to act as an API
-// backend for the bine/tor Go interface.
-type embeddedProcess struct {
-	ctx  context.Context
-	args []string
-	done chan int
-}
-
-// Start implements process.Process, starting up the libtor embedded process.
-func (e *embeddedProcess) Start() error {
-	if e.done != nil {
-		return errors.New("already started")
-	}
-	done, err := libtor.Start(e.args...)
-	if err != nil {
-		return err
-	}
-	e.done = done
-	return nil
-}
-
-// Wait implements process.Process, blocking until the embedded process terminates.
-func (e *embeddedProcess) Wait() error {
-	if e.done == nil {
-		return errors.New("not started")
-	}
-	select {
-	case <-e.ctx.Done():
-		return e.ctx.Err()
-
-	case code := <-e.done:
-		if code == 0 {
-			return nil
-		}
-		return fmt.Errorf("embedded tor failed: %v", code)
-	}
-}
 ```
 
-*Note: Although the above code is lengthy, everything outside of the `main` method is boilerplate that can be separated into its own package. I'll either upstream that into `bine`, or add it here eventually if they do not accept it.*
+The above code will:
+
+ * Start up a new Tor process from within your statically linked binary
+ * Register a new anonymous onion TCP endpoint for remote clients
+ * Start an HTTP server using the Tor network as its transport layer
+
+```
+$ go run main.go
+
+Starting and registering onion service, please wait a bit...
+[...]
+Enabling network before waiting for publication
+[...]
+Waiting for publication
+[...]
+Please open a Tor capable browser and navigate to http://s7t3iy76h54cjacg.onion
+```
+
+![Demo](https://raw.githubusercontent.com/ipsn/go-libtor/master/demo.png)
 
 ## Credits
 
