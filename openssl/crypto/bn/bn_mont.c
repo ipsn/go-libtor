@@ -28,9 +28,9 @@ int BN_mod_mul_montgomery(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
 {
     BIGNUM *tmp;
     int ret = 0;
-#if defined(OPENSSL_BN_ASM_MONT) && defined(MONT_WORD)
     int num = mont->N.top;
 
+#if defined(OPENSSL_BN_ASM_MONT) && defined(MONT_WORD)
     if (num > 1 && a->top == num && b->top == num) {
         if (bn_wexpand(r, num) == NULL)
             return (0);
@@ -42,6 +42,9 @@ int BN_mod_mul_montgomery(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
         }
     }
 #endif
+
+    if ((a->top + b->top) > 2 * num)
+        return 0;
 
     BN_CTX_start(ctx);
     tmp = BN_CTX_get(ctx);
@@ -95,8 +98,6 @@ static int BN_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
 
     /* clear the top words of T */
     i = max - r->top;
-    if (i < 0)
-        return 0;
     if (i)
         memset(&rp[r->top], 0, sizeof(*rp) * i);
 
@@ -129,15 +130,14 @@ static int BN_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
      */
     ap = &(r->d[nl]);
 
+    carry -= bn_sub_words(rp, ap, np, nl);
     /*
-     * |v| is one if |ap| - |np| underflowed or zero if it did not. Note |v|
-     * cannot be -1. That would imply the subtraction did not fit in |nl| words,
-     * and we know at most one subtraction is needed.
+     * |carry| is -1 if |ap| - |np| underflowed or zero if it did not. Note
+     * |carry| cannot be 1. That would imply the subtraction did not fit in
+     * |nl| words, and we know at most one subtraction is needed.
      */
-    v = bn_sub_words(rp, ap, np, nl) - carry;
-    v = 0 - v;
     for (i = 0; i < nl; i++) {
-        rp[i] = (v & ap[i]) | (~v & rp[i]);
+        rp[i] = (carry & ap[i]) | (~carry & rp[i]);
         ap[i] = 0;
     }
     bn_correct_top(r);
