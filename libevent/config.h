@@ -398,6 +398,12 @@
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
 
+/* Define to 1 if compiler have __FUNCTION__ */
+#define HAVE___FUNCTION__ 1
+
+/* Define to 1 if compiler have __func__ */
+#define HAVE___func__ 1
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #define LT_OBJDIR ".libs/"
@@ -508,9 +514,6 @@
 
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 /* #undef _POSIX_SOURCE */
-
-/* Define to appropriate substitue if compiler doesnt have __func__ */
-/* #undef __func__ */
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
