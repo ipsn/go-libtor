@@ -350,10 +350,10 @@ static void x509v3_cache_extensions(X509 *x)
     ASN1_BIT_STRING *ns;
     EXTENDED_KEY_USAGE *extusage;
     X509_EXTENSION *ex;
-
     int i;
 
-    if (x->ex_flags & EXFLAG_SET)
+    /* fast lock-free check, see end of the function for details. */
+    if (x->ex_cached)
         return;
 
     CRYPTO_THREAD_write_lock(x->lock);
@@ -496,6 +496,12 @@ static void x509v3_cache_extensions(X509 *x)
     }
     x->ex_flags |= EXFLAG_SET;
     CRYPTO_THREAD_unlock(x->lock);
+    /*
+     * It has to be placed after memory barrier, which is implied by unlock.
+     * Worst thing that can happen is that another thread proceeds to lock
+     * and checks x->ex_flags & EXFLAGS_SET. See beginning of the function.
+     */
+    x->ex_cached = 1;
 }
 
 /*-
