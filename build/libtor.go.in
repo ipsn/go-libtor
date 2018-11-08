@@ -111,3 +111,8 @@ func (e *embeddedProcess) Wait() error {
 		return fmt.Errorf("embedded tor failed: %v", code)
 	}
 }
+
+// EmbeddedControlConn implements process.Process, but is a noop in the current version.
+func (e *embeddedProcess) EmbeddedControlConn() (net.Conn, error) {
+	return nil, process.ErrControlConnUnsupported
+}
