@@ -163,13 +163,13 @@ int RSA_meth_set_priv_dec(RSA_METHOD *meth,
 
     /* Can be null */
 int (*RSA_meth_get_mod_exp(const RSA_METHOD *meth))
-    (BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
+    (BIGNUM *r0, const BIGNUM *i, RSA *rsa, BN_CTX *ctx)
 {
     return meth->rsa_mod_exp;
 }
 
 int RSA_meth_set_mod_exp(RSA_METHOD *meth,
-                         int (*mod_exp) (BIGNUM *r0, const BIGNUM *I, RSA *rsa,
+                         int (*mod_exp) (BIGNUM *r0, const BIGNUM *i, RSA *rsa,
                                          BN_CTX *ctx))
 {
     meth->rsa_mod_exp = mod_exp;
@@ -271,3 +271,17 @@ int RSA_meth_set_keygen(RSA_METHOD *meth,
     return 1;
 }
 
+int (*RSA_meth_get_multi_prime_keygen(const RSA_METHOD *meth))
+    (RSA *rsa, int bits, int primes, BIGNUM *e, BN_GENCB *cb)
+{
+    return meth->rsa_multi_prime_keygen;
+}
+
+int RSA_meth_set_multi_prime_keygen(RSA_METHOD *meth,
+                                    int (*keygen) (RSA *rsa, int bits,
+                                                   int primes, BIGNUM *e,
+                                                   BN_GENCB *cb))
+{
+    meth->rsa_multi_prime_keygen = keygen;
+    return 1;
+}

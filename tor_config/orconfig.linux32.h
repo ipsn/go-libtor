@@ -614,7 +614,7 @@
 #define PACKAGE_NAME "tor"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "tor 0.3.5.0-alpha-dev"
+#define PACKAGE_STRING "tor 0.3.3.10-dev"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "tor"
@@ -623,7 +623,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.3.5.0-alpha-dev"
+#define PACKAGE_VERSION "0.3.3.10-dev"
 
 /* How to access the PC from a struct ucontext */
 #define PC_FROM_UCONTEXT uc_mcontext.gregs[REG_RIP]

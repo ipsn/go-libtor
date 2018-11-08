@@ -7,11 +7,6 @@ package libtor
 // This file is a simplified clone from github.com/cretz/bine/process/embedded.
 
 /*
-#cgo linux,amd64,!android linux,arm64,!android CFLAGS: -DARCH_LINUX64
-#cgo linux,386,!android linux,arm,!android     CFLAGS: -DARCH_LINUX32
-#cgo android,amd64 android,arm64               CFLAGS: -DARCH_ANDROID64
-#cgo android,386 android,arm                   CFLAGS: -DARCH_ANDROID32
-
 #include <stdlib.h>
 #include <or/tor_api.h>
 
@@ -33,6 +28,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/cretz/bine/process"
 )
@@ -115,4 +111,9 @@ func (e *embeddedProcess) Wait() error {
 		}
 		return fmt.Errorf("embedded tor failed: %v", code)
 	}
+}
+
+// EmbeddedControlConn implements process.Process, but is a noop in the current version.
+func (e *embeddedProcess) EmbeddedControlConn() (net.Conn, error) {
+	return nil, process.ErrControlConnUnsupported
 }

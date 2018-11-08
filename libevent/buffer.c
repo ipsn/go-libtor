@@ -95,6 +95,7 @@
 #include "evthread-internal.h"
 #include "evbuffer-internal.h"
 #include "bufferevent-internal.h"
+#include "event-internal.h"
 
 /* some systems do not have MAP_FAILED */
 #ifndef MAP_FAILED
@@ -1534,11 +1535,11 @@ evbuffer_find_eol_char(struct evbuffer_ptr *it)
 	return (-1);
 }
 
-static inline int
+static inline size_t
 evbuffer_strspn(
 	struct evbuffer_ptr *ptr, const char *chrset)
 {
-	int count = 0;
+	size_t count = 0;
 	struct evbuffer_chain *chain = ptr->internal_.chain;
 	size_t i = ptr->internal_.pos_in_chain;
 
@@ -2227,11 +2228,13 @@ evbuffer_read_setup_vecs_(struct evbuffer *buf, ev_ssize_t howmuch,
 	so_far = 0;
 	/* Let firstchain be the first chain with any space on it */
 	firstchainp = buf->last_with_datap;
+	EVUTIL_ASSERT(*firstchainp);
 	if (CHAIN_SPACE_LEN(*firstchainp) == 0) {
 		firstchainp = &(*firstchainp)->next;
 	}
 
 	chain = *firstchainp;
+	EVUTIL_ASSERT(chain);
 	for (i = 0; i < n_vecs_avail && so_far < (size_t)howmuch; ++i) {
 		size_t avail = (size_t) CHAIN_SPACE_LEN(chain);
 		if (avail > (howmuch - so_far) && exact)
