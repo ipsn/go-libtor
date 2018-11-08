@@ -4,12 +4,12 @@
 
 The `go-libtor` project is a self-contained, fully statically linked Tor library for Go. It consists of an elaborate suite of Go/CGO wrappers around the original C/C++ Tor library and its dependencies ([zlib](https://github.com/madler/zlib), [libevent](https://github.com/libevent/libevent) and [openssl](https://github.com/openssl/openssl)).
 
-| Library  | Commit |
-|:--------:|:------:|
-| zlib     | [`{{.zlib}}`](https://github.com/madler/zlib/commit/{{.zlib}})               |
-| libevent | [`{{.libevent}}`](https://github.com/libevent/libevent/commit/{{.libevent}}) |
-| openssl  | [`{{.openssl}}`](https://github.com/openssl/openssl/commit/{{.openssl}})     |
-| tor      | [`{{.tor}}`](https://gitweb.torproject.org/tor.git/commit/?id={{.tor}})      |
+| Library  | Version | Commit |
+|:--------:|:-------:|:------:|
+| zlib     | {{.zlibVer}}     | [`{{.zlibHash}}`](https://github.com/madler/zlib/commit/{{.zlibHash}})               |
+| libevent | {{.libeventVer}} | [`{{.libeventHash}}`](https://github.com/libevent/libevent/commit/{{.libeventHash}}) |
+| openssl  | {{.opensslVer}}  | [`{{.opensslHash}}`](https://github.com/openssl/openssl/commit/{{.opensslHash}})     |
+| tor      | {{.torVer}}      | [`{{.torHash}}`](https://gitweb.torproject.org/tor.git/commit/?id={{.torHash}})      |
 
 The library is currently supported on:
 

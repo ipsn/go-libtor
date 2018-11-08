@@ -49,19 +49,19 @@ func main() {
 	ioutil.WriteFile("libtor_preamble.go", blob, 0644)
 
 	// Wrap each of the component libraries into megator
-	zlib, err := wrapZlib(*nobuild)
+	zlibVer, zlibHash, err := wrapZlib(*nobuild)
 	if err != nil {
 		panic(err)
 	}
-	libevent, err := wrapLibevent(*nobuild)
+	libeventVer, libeventHash, err := wrapLibevent(*nobuild)
 	if err != nil {
 		panic(err)
 	}
-	openssl, err := wrapOpenSSL(*nobuild)
+	opensslVer, opensslHash, err := wrapOpenSSL(*nobuild)
 	if err != nil {
 		panic(err)
 	}
-	tor, err := wrapTor(*nobuild)
+	torVer, torHash, err := wrapTor(*nobuild)
 	if err != nil {
 		panic(err)
 	}
@@ -72,10 +72,14 @@ func main() {
 	tmpl := template.Must(template.ParseFiles(filepath.Join("build", "README.md")))
 	buf := new(bytes.Buffer)
 	tmpl.Execute(buf, map[string]string{
-		"zlib":     zlib,
-		"libevent": libevent,
-		"openssl":  openssl,
-		"tor":      tor,
+		"zlibVer":      zlibVer,
+		"zlibHash":     zlibHash,
+		"libeventVer":  libeventVer,
+		"libeventHash": libeventHash,
+		"opensslVer":   opensslVer,
+		"opensslHash":  opensslHash,
+		"torVer":       torVer,
+		"torHash":      torHash,
 	})
 	ioutil.WriteFile("README.md", buf.Bytes(), 0644)
 }
@@ -86,7 +90,7 @@ func main() {
 // Zlib is a small and simple C library which can be wrapped by inserting an empty
 // Go file among the C sources, causing the Go compiler to pick up all the loose
 // sources and build them together into a static library.
-func wrapZlib(nobuild bool) (string, error) {
+func wrapZlib(nobuild bool) (string, string, error) {
 	// Clone the upstream repository to wrap, it's fairly inactive, get master
 	os.RemoveAll("zlib")
 
@@ -95,7 +99,7 @@ func wrapZlib(nobuild bool) (string, error) {
 	cloner.Stderr = os.Stderr
 
 	if err := cloner.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	// Save the latest upstream commit hash for later reference
 	parser := exec.Command("git", "rev-parse", "HEAD")
@@ -104,14 +108,18 @@ func wrapZlib(nobuild bool) (string, error) {
 	commit, err := parser.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(commit))
-		return "", err
+		return "", "", err
 	}
 	commit = bytes.TrimSpace(commit)
+
+	// Retrieve the version of the current commit
+	conf, _ := ioutil.ReadFile(filepath.Join("zlib", "zlib.h"))
+	strver := regexp.MustCompile("define ZLIB_VERSION \"(.+)\"").FindSubmatch(conf)[1]
 
 	// Wipe everything from the library that's non-essential
 	files, err := ioutil.ReadDir("zlib")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	for _, file := range files {
 		if file.IsDir() {
@@ -140,9 +148,9 @@ func wrapZlib(nobuild bool) (string, error) {
 		builder.Stdout = os.Stdout
 		builder.Stderr = os.Stderr
 
-		return string(commit), builder.Run()
+		return string(strver), string(commit), builder.Run()
 	}
-	return string(commit), nil
+	return string(strver), string(commit), nil
 }
 
 // zlibPreamble is the CGO preamble injected to configure the C compiler.
@@ -180,7 +188,7 @@ import "C"
 // yet that approach cannot create a portable Go library, we're going to hook
 // into the original build mechanism and use the emitted events as a driver for
 // the Go wrapping.
-func wrapLibevent(nobuild bool) (string, error) {
+func wrapLibevent(nobuild bool) (string, string, error) {
 	// Clone the upstream repository to wrap, it's fairly inactive, get master
 	os.RemoveAll("libevent")
 
@@ -189,7 +197,7 @@ func wrapLibevent(nobuild bool) (string, error) {
 	cloner.Stderr = os.Stderr
 
 	if err := cloner.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	// Save the latest upstream commit hash for later reference
 	parser := exec.Command("git", "rev-parse", "HEAD")
@@ -198,7 +206,7 @@ func wrapLibevent(nobuild bool) (string, error) {
 	commit, err := parser.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(commit))
-		return "", err
+		return "", "", err
 	}
 	commit = bytes.TrimSpace(commit)
 
@@ -209,7 +217,7 @@ func wrapLibevent(nobuild bool) (string, error) {
 	autogen.Stderr = os.Stderr
 
 	if err := autogen.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	configure := exec.Command("./configure", "--disable-shared", "--enable-static")
 	configure.Dir = "libevent"
@@ -217,7 +225,7 @@ func wrapLibevent(nobuild bool) (string, error) {
 	configure.Stderr = os.Stderr
 
 	if err := configure.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	// Retrieve the version of the current commit
 	winconf, _ := ioutil.ReadFile(filepath.Join("libevent", "WIN32-Code", "nmake", "event2", "event-config.h"))
@@ -231,14 +239,14 @@ func wrapLibevent(nobuild bool) (string, error) {
 	out, err := maker.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
-		return "", err
+		return "", "", err
 	}
 	deps := regexp.MustCompile(" ([a-z_]+)\\.lo;").FindAllStringSubmatch(string(out), -1)
 
 	// Wipe everything from the library that's non-essential
 	files, err := ioutil.ReadDir("libevent")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	for _, file := range files {
 		// Remove all folders apart from the headers
@@ -270,11 +278,11 @@ func wrapLibevent(nobuild bool) (string, error) {
 		blob, _ := ioutil.ReadFile(filepath.Join("config", "libevent", fmt.Sprintf("event-config%s.h", arch)))
 		tmpl, err := template.New("").Parse(string(blob))
 		if err != nil {
-			return string(commit), err
+			return "", "", err
 		}
 		buff := new(bytes.Buffer)
 		if err := tmpl.Execute(buff, struct{ NumVer, StrVer string }{string(numver), string(strver)}); err != nil {
-			return string(commit), err
+			return "", "", err
 		}
 		ioutil.WriteFile(filepath.Join("libevent_config", "event2", fmt.Sprintf("event-config%s.h", arch)), buff.Bytes(), 0644)
 	}
@@ -283,9 +291,9 @@ func wrapLibevent(nobuild bool) (string, error) {
 		builder.Stdout = os.Stdout
 		builder.Stderr = os.Stderr
 
-		return string(commit), builder.Run()
+		return string(strver), string(commit), builder.Run()
 	}
-	return string(commit), nil
+	return string(strver), string(commit), nil
 }
 
 // libeventPreamble is the CGO preamble injected to configure the C compiler.
@@ -330,7 +338,7 @@ import "C"
 //
 // In addition, assembly is disabled altogether to retain Go's portability. This
 // is a downside we unfortunately have to live with for now.
-func wrapOpenSSL(nobuild bool) (string, error) {
+func wrapOpenSSL(nobuild bool) (string, string, error) {
 	// Clone the upstream repository to wrap
 	os.RemoveAll("openssl")
 
@@ -339,7 +347,7 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 	cloner.Stderr = os.Stderr
 
 	if err := cloner.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	// OpenSSL is a security concern, switch to the latest stable code
 	brancher := exec.Command("git", "branch", "-a")
@@ -347,18 +355,18 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 
 	out, err := brancher.CombinedOutput()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	stables := regexp.MustCompile("remotes/origin/(OpenSSL_[0-9]_[0-9]_[0-9]-stable)").FindAllSubmatch(out, -1)
 	if len(stables) == 0 {
-		return "", errors.New("no stable branch found")
+		return "", "", errors.New("no stable branch found")
 	}
 	switcher := exec.Command("git", "checkout", string(stables[len(stables)-1][1]))
 	switcher.Dir = "openssl"
 
 	if out, err = switcher.CombinedOutput(); err != nil {
 		fmt.Println(string(out))
-		return "", err
+		return "", "", err
 	}
 	// Save the latest upstream commit hash for later reference
 	parser := exec.Command("git", "rev-parse", "HEAD")
@@ -367,9 +375,12 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 	commit, err := parser.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(commit))
-		return "", err
+		return "", "", err
 	}
 	commit = bytes.TrimSpace(commit)
+
+	// Extract the version string
+	strver := bytes.Replace(stables[len(stables)-1][1], []byte("_"), []byte("."), -1)[len("OpenSSL_"):]
 
 	// Configure the library for compilation
 	config := exec.Command("./config", "no-shared", "no-dso", "no-zlib", "no-asm", "no-async", "no-sctp")
@@ -378,7 +389,7 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 	config.Stderr = os.Stderr
 
 	if err := config.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	// Hook the make system and gather the needed sources
 	maker := exec.Command("make", "--dry-run")
@@ -386,14 +397,14 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 
 	if out, err = maker.CombinedOutput(); err != nil {
 		fmt.Println(string(out))
-		return "", err
+		return "", "", err
 	}
 	deps := regexp.MustCompile("(?m)([a-z0-9_/-]+)\\.c$").FindAllStringSubmatch(string(out), -1)
 
 	// Wipe everything from the library that's non-essential
 	files, err := ioutil.ReadDir("openssl")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	for _, file := range files {
 		// Remove all folders apart from the headers
@@ -444,11 +455,11 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 		blob, _ = ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("buildinf%s.h", arch)))
 		tmpl, err := template.New("").Parse(string(blob))
 		if err != nil {
-			return string(commit), err
+			return "", "", err
 		}
 		buff := new(bytes.Buffer)
 		if err := tmpl.Execute(buff, struct{ Date string }{time.Now().Format(time.UnixDate)}); err != nil {
-			return string(commit), err
+			return "", "", err
 		}
 		ioutil.WriteFile(filepath.Join("openssl_config", fmt.Sprintf("buildinf%s.h", arch)), buff.Bytes(), 0644)
 	}
@@ -463,9 +474,9 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 		builder.Stdout = os.Stdout
 		builder.Stderr = os.Stderr
 
-		return string(commit), builder.Run()
+		return string(strver), string(commit), builder.Run()
 	}
-	return string(commit), nil
+	return string(strver), string(commit), nil
 }
 
 // opensslPreamble is the CGO preamble injected to configure the C compiler.
@@ -503,7 +514,7 @@ import "C"
 
 // wrapTor clones the Tor library into the local repository and wraps it into a
 // Go package.
-func wrapTor(nobuild bool) (string, error) {
+func wrapTor(nobuild bool) (string, string, error) {
 	// Clone the upstream repository to wrap
 	os.RemoveAll("tor")
 
@@ -512,7 +523,7 @@ func wrapTor(nobuild bool) (string, error) {
 	cloner.Stderr = os.Stderr
 
 	if err := cloner.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	// Save the latest upstream commit hash for later reference
 	parser := exec.Command("git", "rev-parse", "HEAD")
@@ -521,7 +532,7 @@ func wrapTor(nobuild bool) (string, error) {
 	commit, err := parser.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(commit))
-		return "", err
+		return "", "", err
 	}
 	commit = bytes.TrimSpace(commit)
 
@@ -532,7 +543,7 @@ func wrapTor(nobuild bool) (string, error) {
 	autogen.Stderr = os.Stderr
 
 	if err := autogen.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	configure := exec.Command("./configure", "--disable-asciidoc")
 	configure.Dir = "tor"
@@ -540,7 +551,7 @@ func wrapTor(nobuild bool) (string, error) {
 	configure.Stderr = os.Stderr
 
 	if err := configure.Run(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	// Retrieve the version of the current commit
 	winconf, _ := ioutil.ReadFile(filepath.Join("tor", "src", "win32", "orconfig.h"))
@@ -553,14 +564,14 @@ func wrapTor(nobuild bool) (string, error) {
 	out, err := maker.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
-		return "", err
+		return "", "", err
 	}
 	deps := regexp.MustCompile("(?m)([a-z0-9_/-]+)\\.c$").FindAllStringSubmatch(string(out), -1)
 
 	// Wipe everything from the library that's non-essential
 	files, err := ioutil.ReadDir("tor")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	for _, file := range files {
 		// Remove all folders apart from the sources
@@ -580,7 +591,7 @@ func wrapTor(nobuild bool) (string, error) {
 	// Wipe all the sources from the library that are non-essential
 	files, err = ioutil.ReadDir(filepath.Join("tor", "src"))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	for _, file := range files {
 		if file.IsDir() {
@@ -638,11 +649,11 @@ func wrapTor(nobuild bool) (string, error) {
 		blob, _ := ioutil.ReadFile(filepath.Join("config", "tor", fmt.Sprintf("orconfig%s.h", arch)))
 		tmpl, err := template.New("").Parse(string(blob))
 		if err != nil {
-			return string(commit), err
+			return "", "", err
 		}
 		buff := new(bytes.Buffer)
 		if err := tmpl.Execute(buff, struct{ StrVer string }{string(strver)}); err != nil {
-			return string(commit), err
+			return "", "", err
 		}
 		ioutil.WriteFile(filepath.Join("tor_config", fmt.Sprintf("orconfig%s.h", arch)), buff.Bytes(), 0644)
 	}
@@ -654,9 +665,9 @@ func wrapTor(nobuild bool) (string, error) {
 		builder.Stdout = os.Stdout
 		builder.Stderr = os.Stderr
 
-		return string(commit), builder.Run()
+		return string(strver), string(commit), builder.Run()
 	}
-	return string(commit), nil
+	return string(strver), string(commit), nil
 }
 
 // torPreamble is the CGO preamble injected to configure the C compiler.
