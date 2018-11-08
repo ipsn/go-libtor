@@ -17,9 +17,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
-// nobuild can be used the prevent the wrappers from triggering a build after
+// nobuild can be used to prevent the wrappers from triggering a build after
 // each step. This should only be used in production mode when there's a final
 // build check outside of the wrapping.
 var nobuild = flag.Bool("nobuild", false, "Prevents the wrappers from building")
@@ -43,6 +44,10 @@ func main() {
 			os.Remove(file.Name())
 		}
 	}
+	// Copy in the library preamble with the architecture definitions
+	blob, _ := ioutil.ReadFile(filepath.Join("build", "libtor_preamble.go.in"))
+	ioutil.WriteFile("libtor_preamble.go", blob, 0644)
+
 	// Wrap each of the component libraries into megator
 	zlib, err := wrapZlib(*nobuild)
 	if err != nil {
@@ -61,7 +66,7 @@ func main() {
 		panic(err)
 	}
 	// Copy in the tor entrypoint wrapper, fill out the readme template
-	blob, _ := ioutil.ReadFile(filepath.Join("build", "libtor.go.in"))
+	blob, _ = ioutil.ReadFile(filepath.Join("build", "libtor.go.in"))
 	ioutil.WriteFile("libtor.go", blob, 0644)
 
 	tmpl := template.Must(template.ParseFiles(filepath.Join("build", "README.md")))
@@ -214,6 +219,11 @@ func wrapLibevent(nobuild bool) (string, error) {
 	if err := configure.Run(); err != nil {
 		return "", err
 	}
+	// Retrieve the version of the current commit
+	winconf, _ := ioutil.ReadFile(filepath.Join("libevent", "WIN32-Code", "nmake", "event2", "event-config.h"))
+	numver := regexp.MustCompile("define EVENT__NUMERIC_VERSION (0x[0-9]{8})").FindSubmatch(winconf)[1]
+	strver := regexp.MustCompile("define EVENT__VERSION \"(.+)\"").FindSubmatch(winconf)[1]
+
 	// Hook the make system and gather the needed sources
 	maker := exec.Command("make", "--dry-run", "libevent.la")
 	maker.Dir = "libevent"
@@ -258,7 +268,15 @@ func wrapLibevent(nobuild bool) (string, error) {
 
 	for _, arch := range []string{"", ".linux64", ".linux32", ".android64", ".android32"} {
 		blob, _ := ioutil.ReadFile(filepath.Join("config", "libevent", fmt.Sprintf("event-config%s.h", arch)))
-		ioutil.WriteFile(filepath.Join("libevent_config", "event2", fmt.Sprintf("event-config%s.h", arch)), blob, 0644)
+		tmpl, err := template.New("").Parse(string(blob))
+		if err != nil {
+			return string(commit), err
+		}
+		buff := new(bytes.Buffer)
+		if err := tmpl.Execute(buff, struct{ NumVer, StrVer string }{string(numver), string(strver)}); err != nil {
+			return string(commit), err
+		}
+		ioutil.WriteFile(filepath.Join("libevent_config", "event2", fmt.Sprintf("event-config%s.h", arch)), buff.Bytes(), 0644)
 	}
 	if !nobuild {
 		builder := exec.Command("go", "install")
@@ -424,7 +442,15 @@ func wrapOpenSSL(nobuild bool) (string, error) {
 	}
 	for _, arch := range []string{"", ".x64", ".x86"} {
 		blob, _ = ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("buildinf%s.h", arch)))
-		ioutil.WriteFile(filepath.Join("openssl_config", fmt.Sprintf("buildinf%s.h", arch)), blob, 0644)
+		tmpl, err := template.New("").Parse(string(blob))
+		if err != nil {
+			return string(commit), err
+		}
+		buff := new(bytes.Buffer)
+		if err := tmpl.Execute(buff, struct{ Date string }{time.Now().Format(time.UnixDate)}); err != nil {
+			return string(commit), err
+		}
+		ioutil.WriteFile(filepath.Join("openssl_config", fmt.Sprintf("buildinf%s.h", arch)), buff.Bytes(), 0644)
 	}
 	os.MkdirAll(filepath.Join("openssl_config", "openssl"), 0755)
 
@@ -516,6 +542,10 @@ func wrapTor(nobuild bool) (string, error) {
 	if err := configure.Run(); err != nil {
 		return "", err
 	}
+	// Retrieve the version of the current commit
+	winconf, _ := ioutil.ReadFile(filepath.Join("tor", "src", "win32", "orconfig.h"))
+	strver := regexp.MustCompile("define VERSION \"(.+)\"").FindSubmatch(winconf)[1]
+
 	// Hook the make system and gather the needed sources
 	maker := exec.Command("make", "--dry-run")
 	maker.Dir = "tor"
@@ -604,13 +634,17 @@ func wrapTor(nobuild bool) (string, error) {
 	// Inject the configuration headers and ensure everything builds
 	os.MkdirAll("tor_config", 0755)
 
-	blob, _ = ioutil.ReadFile(filepath.Join("tor", "src", "win32", "orconfig.h"))
-	ver := regexp.MustCompile("VERSION \".+\"").Find(blob)
-
 	for _, arch := range []string{"", ".linux64", ".linux32", ".android64", ".android32"} {
-		blob, _ = ioutil.ReadFile(filepath.Join("config", "tor", fmt.Sprintf("orconfig%s.h", arch)))
-		blob = bytes.Replace(blob, []byte("VERSION \"\""), ver, -1)
-		ioutil.WriteFile(filepath.Join("tor_config", fmt.Sprintf("orconfig%s.h", arch)), blob, 0644)
+		blob, _ := ioutil.ReadFile(filepath.Join("config", "tor", fmt.Sprintf("orconfig%s.h", arch)))
+		tmpl, err := template.New("").Parse(string(blob))
+		if err != nil {
+			return string(commit), err
+		}
+		buff := new(bytes.Buffer)
+		if err := tmpl.Execute(buff, struct{ StrVer string }{string(strver)}); err != nil {
+			return string(commit), err
+		}
+		ioutil.WriteFile(filepath.Join("tor_config", fmt.Sprintf("orconfig%s.h", arch)), buff.Bytes(), 0644)
 	}
 	blob, _ = ioutil.ReadFile(filepath.Join("config", "tor", "micro-revision.i"))
 	ioutil.WriteFile(filepath.Join("tor_config", "micro-revision.i"), blob, 0644)
