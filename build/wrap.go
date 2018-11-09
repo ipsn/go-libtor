@@ -10,14 +10,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
+	"text/template"
 )
 
 // nobuild can be used to prevent the wrappers from triggering a build after
@@ -379,6 +378,17 @@ func wrapOpenSSL(nobuild bool) (string, string, error) {
 	}
 	commit = bytes.TrimSpace(commit)
 
+	//Save the latest
+	timer := exec.Command("git", "show", "-s", "--format=%cd")
+	timer.Dir = "openssl"
+
+	date, err := timer.CombinedOutput()
+	if err != nil {
+		fmt.Println(string(date))
+		return "", "", err
+	}
+	date = bytes.TrimSpace(date)
+
 	// Extract the version string
 	strver := bytes.Replace(stables[len(stables)-1][1], []byte("_"), []byte("."), -1)[len("OpenSSL_"):]
 
@@ -458,7 +468,7 @@ func wrapOpenSSL(nobuild bool) (string, string, error) {
 			return "", "", err
 		}
 		buff := new(bytes.Buffer)
-		if err := tmpl.Execute(buff, struct{ Date string }{time.Now().Format(time.UnixDate)}); err != nil {
+		if err := tmpl.Execute(buff, struct{ Date string }{string(date)}); err != nil {
 			return "", "", err
 		}
 		ioutil.WriteFile(filepath.Join("openssl_config", fmt.Sprintf("buildinf%s.h", arch)), buff.Bytes(), 0644)
