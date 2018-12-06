@@ -528,7 +528,7 @@ func wrapTor(nobuild bool) (string, string, error) {
 	// Clone the upstream repository to wrap
 	os.RemoveAll("tor")
 
-	cloner := exec.Command("git", "clone", "--depth", "1", "--branch", "release-0.3.3", "https://git.torproject.org/tor.git")
+	cloner := exec.Command("git", "clone", "--depth", "1", "--branch", "release-0.3.5", "https://git.torproject.org/tor.git")
 	cloner.Stdout = os.Stdout
 	cloner.Stderr = os.Stderr
 
@@ -605,7 +605,7 @@ func wrapTor(nobuild bool) (string, string, error) {
 	}
 	for _, file := range files {
 		if file.IsDir() {
-			if file.Name() == "common" || file.Name() == "ext" || file.Name() == "lib" || file.Name() == "or" || file.Name() == "trace" || file.Name() == "trunnel" || file.Name() == "win32" {
+			if file.Name() == "app" || file.Name() == "core" || file.Name() == "ext" || file.Name() == "feature" || file.Name() == "lib" || file.Name() == "trunnel" || file.Name() == "win32" {
 				continue
 			}
 			os.RemoveAll(filepath.Join("tor", "src", file.Name()))
@@ -614,16 +614,15 @@ func wrapTor(nobuild bool) (string, string, error) {
 		os.Remove(filepath.Join("tor", "src", file.Name()))
 	}
 	// Fix the string compatibility source to load the correct code
-	blob, _ := ioutil.ReadFile(filepath.Join("tor", "src", "common", "compat.c"))
-	ioutil.WriteFile(filepath.Join("tor", "src", "common", "compat.c"), bytes.Replace(blob, []byte("strlcpy.c"), []byte("ext/strlcpy.c"), -1), 0644)
-
-	// Fix for 0.3.5 branch
-	//blob, _ := ioutil.ReadFile(filepath.Join("tor", "src", "lib", "string", "compat_string.c"))
-	//ioutil.WriteFile(filepath.Join("tor", "src", "lib", "string", "compat_string.c"), bytes.Replace(blob, []byte("strlcpy.c"), []byte("ext/strlcpy.c"), -1), 0644)
+	blob, _ := ioutil.ReadFile(filepath.Join("tor", "src", "lib", "string", "compat_string.c"))
+	ioutil.WriteFile(filepath.Join("tor", "src", "lib", "string", "compat_string.c"), bytes.Replace(blob, []byte("strlcpy.c"), []byte("ext/strlcpy.c"), -1), 0644)
 
 	// Generate Go wrappers for each C source individually
 	for _, dep := range deps {
 		// Skip any files not needed for the library
+		if strings.HasPrefix(dep[1], "src/ext/tinytest") {
+			continue
+		}
 		if strings.HasPrefix(dep[1], "src/test/") {
 			continue
 		}
@@ -690,11 +689,10 @@ package libtor
 #cgo CFLAGS: -I${SRCDIR}/tor_config
 #cgo CFLAGS: -I${SRCDIR}/tor
 #cgo CFLAGS: -I${SRCDIR}/tor/src
-#cgo CFLAGS: -I${SRCDIR}/tor/src/common
+#cgo CFLAGS: -I${SRCDIR}/tor/src/core/or
 #cgo CFLAGS: -I${SRCDIR}/tor/src/ext
 #cgo CFLAGS: -I${SRCDIR}/tor/src/ext/trunnel
-#cgo CFLAGS: -I${SRCDIR}/tor/src/or
-#cgo CFLAGS: -I${SRCDIR}/tor/src/trunnel
+#cgo CFLAGS: -I${SRCDIR}/tor/src/feature/api
 
 #cgo CFLAGS: -DED25519_CUSTOMRANDOM -DED25519_CUSTOMHASH -DED25519_SUFFIX=_donna
 

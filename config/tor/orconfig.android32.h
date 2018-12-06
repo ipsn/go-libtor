@@ -29,6 +29,12 @@
 /* Defined if we default to host local appdata paths on Windows */
 /* #undef ENABLE_LOCAL_APPDATA */
 
+/* Defined if we're building with NSS. */
+/* #undef ENABLE_NSS */
+
+/* Defined if we're building with OpenSSL or LibreSSL */
+#define ENABLE_OPENSSL 1
+
 /* Defined if we're building with support for in-process restart debugging. */
 /* #undef ENABLE_RESTART_DEBUGGING */
 
@@ -70,6 +76,9 @@
 
 /* True if we have -Woverlength-strings */
 #define HAVE_CFLAG_WOVERLENGTH_STRINGS 1
+
+/* True if we have -Wunused-const-variable */
+/* #undef HAVE_CFLAG_WUNUSED_CONST_VARIABLE */
 
 /* Define to 1 if you have the `clock_gettime' function. */
 #define HAVE_CLOCK_GETTIME 1

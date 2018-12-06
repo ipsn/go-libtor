@@ -8,7 +8,7 @@ package libtor
 
 /*
 #include <stdlib.h>
-#include <or/tor_api.h>
+#include <tor_api.h>
 
 static char** makeCharArray(int size) {
 	return calloc(sizeof(char*), size);
