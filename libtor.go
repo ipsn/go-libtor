@@ -29,34 +29,15 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/cretz/bine/process"
 )
 
-// start creates a new tor process, returning a termination channel.
-func start(args ...string) (chan int, error) {
-	// Create the char array for the args
-	args = append([]string{"tor"}, args...)
-
-	charArray := C.makeCharArray(C.int(len(args)))
-	for i, a := range args {
-		C.setArrayString(charArray, C.CString(a), C.int(i))
-	}
-	// Build the tor configuration
-	config := C.tor_main_configuration_new()
-	if code := C.tor_main_configuration_set_command_line(config, C.int(len(args)), charArray); code != 0 {
-		C.tor_main_configuration_free(config)
-		C.freeCharArray(charArray, C.int(len(args)))
-		return nil, fmt.Errorf("failed to set arguments: %v", int(code))
-	}
-	// Start tor and return
-	done := make(chan int, 1)
-	go func() {
-		defer C.freeCharArray(charArray, C.int(len(args)))
-		defer C.tor_main_configuration_free(config)
-		done <- int(C.tor_run_main(config))
-	}()
-	return done, nil
+// ProviderVersion returns the Tor provider name and version exposed from the
+// Tor embedded API.
+func ProviderVersion() string {
+	return C.GoString(C.tor_api_get_provider_version())
 }
 
 // Creator implements the bine.process.Creator, permitting libtor to act as an API
@@ -72,13 +53,18 @@ func (embeddedCreator) New(ctx context.Context, args ...string) (process.Process
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return &embeddedProcess{ctx: ctx, args: args}, nil
+	return &embeddedProcess{
+		ctx:  ctx,
+		conf: C.tor_main_configuration_new(),
+		args: args,
+	}, nil
 }
 
 // embeddedProcess implements process.Process, permitting libtor to act as an API
 // backend for the bine/tor Go interface.
 type embeddedProcess struct {
 	ctx  context.Context
+	conf *C.struct_tor_main_configuration_t
 	args []string
 	done chan int
 }
@@ -88,11 +74,26 @@ func (e *embeddedProcess) Start() error {
 	if e.done != nil {
 		return errors.New("already started")
 	}
-	done, err := start(e.args...)
-	if err != nil {
-		return err
+	// Create the char array for the args
+	args := append([]string{"tor"}, e.args...)
+
+	charArray := C.makeCharArray(C.int(len(args)))
+	for i, a := range args {
+		C.setArrayString(charArray, C.CString(a), C.int(i))
 	}
-	e.done = done
+	// Build the tor configuration
+	if code := C.tor_main_configuration_set_command_line(e.conf, C.int(len(args)), charArray); code != 0 {
+		C.tor_main_configuration_free(e.conf)
+		C.freeCharArray(charArray, C.int(len(args)))
+		return fmt.Errorf("failed to set arguments: %v", int(code))
+	}
+	// Start tor and return
+	e.done = make(chan int, 1)
+	go func() {
+		defer C.freeCharArray(charArray, C.int(len(args)))
+		defer C.tor_main_configuration_free(e.conf)
+		e.done <- int(C.tor_run_main(e.conf))
+	}()
 	return nil
 }
 
@@ -113,7 +114,13 @@ func (e *embeddedProcess) Wait() error {
 	}
 }
 
-// EmbeddedControlConn implements process.Process, but is a noop in the current version.
+// EmbeddedControlConn implements process.Process, connecting to the control port
+// of the embedded Tor isntance.
 func (e *embeddedProcess) EmbeddedControlConn() (net.Conn, error) {
-	return nil, process.ErrControlConnUnsupported
+	file := os.NewFile(uintptr(C.tor_main_configuration_setup_control_socket(e.conf)), "")
+	conn, err := net.FileConn(file)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create control socket: %v", err)
+	}
+	return conn, nil
 }
