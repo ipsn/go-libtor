@@ -32,7 +32,7 @@ go get -u github.com/cretz/bine/tor
 
 ## Usage
 
-The `go-libtor` project does not contain a full Go API to interface Tor with, rather only the smallest building block to start up an embedded instance. The reason is because there is already a solid Go project out there ([github.com/cretz/bine](https://github.com/cretz/bine/tor)) which focuses on interfacing.
+The `go-libtor` project does not contain a full Go API to interface Tor with, rather only the smallest building block to start up an embedded instance. The reason is because there is already a solid Go project out there ([github.com/cretz/bine](https://github.com/cretz/bine)) which focuses on interfacing.
 
 Using both projects in combination however is straightforward:
 
