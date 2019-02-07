@@ -8,7 +8,7 @@ The `go-libtor` project is a self-contained, fully statically linked Tor library
 |:--------:|:-------:|:------:|
 | zlib     | 1.2.11     | [`cacf7f1d4e3d44d871b605da3b647f07d718623f`](https://github.com/madler/zlib/commit/cacf7f1d4e3d44d871b605da3b647f07d718623f)               |
 | libevent | 2.2.0-alpha-dev | [`63c6669fd831088825dfc0000737a33853bb36e8`](https://github.com/libevent/libevent/commit/63c6669fd831088825dfc0000737a33853bb36e8) |
-| openssl  | 1.1.1-stable  | [`3b09585bd67c41445be4be8a84233e5d9a699264`](https://github.com/openssl/openssl/commit/3b09585bd67c41445be4be8a84233e5d9a699264)     |
+| openssl  | 1.1.1-stable  | [`eaacc2475044b624a7b3b1ecd9ebe5953a6ff45d`](https://github.com/openssl/openssl/commit/eaacc2475044b624a7b3b1ecd9ebe5953a6ff45d)     |
 | tor      | 0.3.5.7-dev      | [`1cc234ed00035f35779ff32a8032dea1775be937`](https://gitweb.torproject.org/tor.git/commit/?id=1cc234ed00035f35779ff32a8032dea1775be937)      |
 
 The library is currently supported on:
@@ -32,7 +32,7 @@ go get -u github.com/cretz/bine/tor
 
 ## Usage
 
-The `go-libtor` project does not contain a full Go API to interface Tor with, rather only the smallest building block to start up an embedded instance. The reason is because there is already a solid Go project out there ([github.com/cretz/bine](https://github.com/cretz/bine/tor)) which focuses on interfacing.
+The `go-libtor` project does not contain a full Go API to interface Tor with, rather only the smallest building block to start up an embedded instance. The reason is because there is already a solid Go project out there ([github.com/cretz/bine](https://github.com/cretz/bine)) which focuses on interfacing.
 
 Using both projects in combination however is straightforward:
 
