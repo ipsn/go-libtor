@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -36,6 +36,15 @@
  * saner...  why re-open /dev/crypto for every session?
  */
 static int cfd;
+
+static int clean_devcrypto_session(struct session_op *sess) {
+    if (ioctl(cfd, CIOCFSESSION, &sess->ses) < 0) {
+        SYSerr(SYS_F_IOCTL, errno);
+        return 0;
+    }
+    memset(sess, 0, sizeof(struct session_op));
+    return 1;
+}
 
 /******************************************************************************
  *
@@ -145,7 +154,11 @@ static int cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     const struct cipher_data_st *cipher_d =
         get_cipher_data(EVP_CIPHER_CTX_nid(ctx));
 
-    memset(&cipher_ctx->sess, 0, sizeof(cipher_ctx->sess));
+    /* cleanup a previous session */
+    if (cipher_ctx->sess.ses != 0 &&
+        clean_devcrypto_session(&cipher_ctx->sess) == 0)
+        return 0;
+
     cipher_ctx->sess.cipher = cipher_d->devcryptoid;
     cipher_ctx->sess.keylen = cipher_d->keylen;
     cipher_ctx->sess.key = (void *)key;
@@ -284,15 +297,28 @@ static int ctr_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
 static int cipher_ctrl(EVP_CIPHER_CTX *ctx, int type, int p1, void* p2)
 {
+    struct cipher_ctx *cipher_ctx =
+        (struct cipher_ctx *)EVP_CIPHER_CTX_get_cipher_data(ctx);
     EVP_CIPHER_CTX *to_ctx = (EVP_CIPHER_CTX *)p2;
-    struct cipher_ctx *cipher_ctx;
+    struct cipher_ctx *to_cipher_ctx;
 
-    if (type == EVP_CTRL_COPY) {
+    switch (type) {
+    case EVP_CTRL_COPY:
+        if (cipher_ctx == NULL)
+            return 1;
         /* when copying the context, a new session needs to be initialized */
-        cipher_ctx = (struct cipher_ctx *)EVP_CIPHER_CTX_get_cipher_data(ctx);
-        return (cipher_ctx == NULL)
-            || cipher_init(to_ctx, cipher_ctx->sess.key, EVP_CIPHER_CTX_iv(ctx),
+        to_cipher_ctx =
+            (struct cipher_ctx *)EVP_CIPHER_CTX_get_cipher_data(to_ctx);
+        memset(&to_cipher_ctx->sess, 0, sizeof(to_cipher_ctx->sess));
+        return cipher_init(to_ctx, cipher_ctx->sess.key, EVP_CIPHER_CTX_iv(ctx),
                            (cipher_ctx->op == COP_ENCRYPT));
+
+    case EVP_CTRL_INIT:
+        memset(&cipher_ctx->sess, 0, sizeof(cipher_ctx->sess));
+        return 1;
+
+    default:
+        break;
     }
 
     return -1;
@@ -303,12 +329,7 @@ static int cipher_cleanup(EVP_CIPHER_CTX *ctx)
     struct cipher_ctx *cipher_ctx =
         (struct cipher_ctx *)EVP_CIPHER_CTX_get_cipher_data(ctx);
 
-    if (ioctl(cfd, CIOCFSESSION, &cipher_ctx->sess.ses) < 0) {
-        SYSerr(SYS_F_IOCTL, errno);
-        return 0;
-    }
-
-    return 1;
+    return clean_devcrypto_session(&cipher_ctx->sess);
 }
 
 /*
@@ -354,6 +375,7 @@ static void prepare_cipher_methods(void)
             || !EVP_CIPHER_meth_set_flags(known_cipher_methods[i],
                                           cipher_data[i].flags
                                           | EVP_CIPH_CUSTOM_COPY
+                                          | EVP_CIPH_CTRL_INIT
                                           | EVP_CIPH_FLAG_DEFAULT_ASN1)
             || !EVP_CIPHER_meth_set_init(known_cipher_methods[i], cipher_init)
             || !EVP_CIPHER_meth_set_do_cipher(known_cipher_methods[i],
@@ -443,29 +465,30 @@ struct digest_ctx {
 
 static const struct digest_data_st {
     int nid;
+    int blocksize;
     int digestlen;
     int devcryptoid;
 } digest_data[] = {
 #ifndef OPENSSL_NO_MD5
-    { NID_md5, 16, CRYPTO_MD5 },
+    { NID_md5, /* MD5_CBLOCK */ 64, 16, CRYPTO_MD5 },
 #endif
-    { NID_sha1, 20, CRYPTO_SHA1 },
+    { NID_sha1, SHA_CBLOCK, 20, CRYPTO_SHA1 },
 #ifndef OPENSSL_NO_RMD160
 # if !defined(CHECK_BSD_STYLE_MACROS) || defined(CRYPTO_RIPEMD160)
-    { NID_ripemd160, 20, CRYPTO_RIPEMD160 },
+    { NID_ripemd160, /* RIPEMD160_CBLOCK */ 64, 20, CRYPTO_RIPEMD160 },
 # endif
 #endif
 #if !defined(CHECK_BSD_STYLE_MACROS) || defined(CRYPTO_SHA2_224)
-    { NID_sha224, 224 / 8, CRYPTO_SHA2_224 },
+    { NID_sha224, SHA256_CBLOCK, 224 / 8, CRYPTO_SHA2_224 },
 #endif
 #if !defined(CHECK_BSD_STYLE_MACROS) || defined(CRYPTO_SHA2_256)
-    { NID_sha256, 256 / 8, CRYPTO_SHA2_256 },
+    { NID_sha256, SHA256_CBLOCK, 256 / 8, CRYPTO_SHA2_256 },
 #endif
 #if !defined(CHECK_BSD_STYLE_MACROS) || defined(CRYPTO_SHA2_384)
-    { NID_sha384, 384 / 8, CRYPTO_SHA2_384 },
+    { NID_sha384, SHA512_CBLOCK, 384 / 8, CRYPTO_SHA2_384 },
 #endif
 #if !defined(CHECK_BSD_STYLE_MACROS) || defined(CRYPTO_SHA2_512)
-    { NID_sha512, 512 / 8, CRYPTO_SHA2_512 },
+    { NID_sha512, SHA512_CBLOCK, 512 / 8, CRYPTO_SHA2_512 },
 #endif
 };
 
@@ -596,11 +619,8 @@ static int digest_cleanup(EVP_MD_CTX *ctx)
 
     if (digest_ctx == NULL)
         return 1;
-    if (ioctl(cfd, CIOCFSESSION, &digest_ctx->sess.ses) < 0) {
-        SYSerr(SYS_F_IOCTL, errno);
-        return 0;
-    }
-    return 1;
+
+    return clean_devcrypto_session(&digest_ctx->sess);
 }
 
 static int devcrypto_test_digest(size_t digest_data_index)
@@ -651,6 +671,8 @@ static void prepare_digest_methods(void)
 
         if ((known_digest_methods[i] = EVP_MD_meth_new(digest_data[i].nid,
                                                        NID_undef)) == NULL
+            || !EVP_MD_meth_set_input_blocksize(known_digest_methods[i],
+                                                digest_data[i].blocksize)
             || !EVP_MD_meth_set_result_size(known_digest_methods[i],
                                             digest_data[i].digestlen)
             || !EVP_MD_meth_set_init(known_digest_methods[i], digest_init)
