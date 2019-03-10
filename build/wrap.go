@@ -34,7 +34,7 @@ func main() {
 	}
 	for _, file := range files {
 		if file.IsDir() {
-			if strings.HasSuffix(file.Name(), "_config") {
+			if strings.HasSuffix(file.Name(), "_config") || file.Name() == "libtor" {
 				os.RemoveAll(file.Name())
 			}
 			continue
@@ -44,8 +44,11 @@ func main() {
 		}
 	}
 	// Copy in the library preamble with the architecture definitions
+	if err := os.MkdirAll("libtor", 0755); err != nil {
+		panic(err)
+	}
 	blob, _ := ioutil.ReadFile(filepath.Join("build", "libtor_preamble.go.in"))
-	ioutil.WriteFile("libtor_preamble.go", blob, 0644)
+	ioutil.WriteFile(filepath.Join("libtor", "libtor_preamble.go"), blob, 0644)
 
 	// Wrap each of the component libraries into megator
 	zlibVer, zlibHash, err := wrapZlib(*nobuild)
@@ -64,8 +67,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// Copy in the tor entrypoint wrapper, fill out the readme template
-	blob, _ = ioutil.ReadFile(filepath.Join("build", "libtor.go.in"))
+	// Copy in the tor entrypoint wrappers, fill out the readme template
+	blob, _ = ioutil.ReadFile(filepath.Join("build", "libtor_internal.go.in"))
+	ioutil.WriteFile(filepath.Join("libtor", "libtor.go"), blob, 0644)
+
+	blob, _ = ioutil.ReadFile(filepath.Join("build", "libtor_external.go.in"))
 	ioutil.WriteFile("libtor.go", blob, 0644)
 
 	tmpl := template.Must(template.ParseFiles(filepath.Join("build", "README.md")))
@@ -136,10 +142,10 @@ func wrapZlib(nobuild bool) (string, string, error) {
 		}
 		if ext := filepath.Ext(file.Name()); ext == ".c" {
 			name := strings.TrimSuffix(file.Name(), ext)
-			ioutil.WriteFile("zlib_"+name+".go", []byte(fmt.Sprintf(zlibTemplate, name)), 0644)
+			ioutil.WriteFile(filepath.Join("libtor", "zlib_"+name+".go"), []byte(fmt.Sprintf(zlibTemplate, name)), 0644)
 		}
 	}
-	ioutil.WriteFile("zlib_preamble.go", []byte(zlibPreamble), 0644)
+	ioutil.WriteFile(filepath.Join("libtor", "zlib_preamble.go"), []byte(zlibPreamble), 0644)
 
 	// Ensure the library builds
 	if !nobuild {
@@ -159,7 +165,7 @@ var zlibPreamble = `// go-libtor - Self-contained Tor from Go
 package libtor
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/zlib
+#cgo CFLAGS: -I${SRCDIR}/../zlib
 */
 import "C"
 `
@@ -171,7 +177,7 @@ var zlibTemplate = `// go-libtor - Self-contained Tor from Go
 package libtor
 
 /*
-#include <zlib/%s.c>
+#include <../zlib/%s.c>
 */
 import "C"
 `
@@ -266,9 +272,9 @@ func wrapLibevent(nobuild bool) (string, string, error) {
 	}
 	// Generate Go wrappers for each C source individually
 	for _, dep := range deps {
-		ioutil.WriteFile("libevent_"+dep[1]+".go", []byte(fmt.Sprintf(libeventTemplate, dep[1])), 0644)
+		ioutil.WriteFile(filepath.Join("libtor", "libevent_"+dep[1]+".go"), []byte(fmt.Sprintf(libeventTemplate, dep[1])), 0644)
 	}
-	ioutil.WriteFile("libevent_preamble.go", []byte(libeventPreamble), 0644)
+	ioutil.WriteFile(filepath.Join("libtor", "libevent_preamble.go"), []byte(libeventPreamble), 0644)
 
 	// Inject the configuration headers and ensure everything builds
 	os.MkdirAll(filepath.Join("libevent_config", "event2"), 0755)
@@ -302,10 +308,10 @@ var libeventPreamble = `// go-libtor - Self-contained Tor from Go
 package libtor
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/libevent_config
-#cgo CFLAGS: -I${SRCDIR}/libevent
-#cgo CFLAGS: -I${SRCDIR}/libevent/compat
-#cgo CFLAGS: -I${SRCDIR}/libevent/include
+#cgo CFLAGS: -I${SRCDIR}/../libevent_config
+#cgo CFLAGS: -I${SRCDIR}/../libevent
+#cgo CFLAGS: -I${SRCDIR}/../libevent/compat
+#cgo CFLAGS: -I${SRCDIR}/../libevent/include
 */
 import "C"
 `
@@ -318,7 +324,7 @@ package libtor
 
 /*
 #include <compat/sys/queue.h>
-#include <%s.c>
+#include <../%s.c>
 */
 import "C"
 `
@@ -447,9 +453,9 @@ func wrapOpenSSL(nobuild bool) (string, string, error) {
 		}
 		// Anything else is wrapped directly with Go
 		gofile := strings.Replace(dep[1], "/", "_", -1) + ".go"
-		ioutil.WriteFile("openssl_"+gofile, []byte(fmt.Sprintf(opensslTemplate, dep[1])), 0644)
+		ioutil.WriteFile(filepath.Join("libtor", "openssl_"+gofile), []byte(fmt.Sprintf(opensslTemplate, dep[1])), 0644)
 	}
-	ioutil.WriteFile("openssl_preamble.go", []byte(opensslPreamble), 0644)
+	ioutil.WriteFile(filepath.Join("libtor", "openssl_preamble.go"), []byte(opensslPreamble), 0644)
 
 	// Inject the configuration headers and ensure everything builds
 	os.MkdirAll(filepath.Join("openssl_config", "internal"), 0755)
@@ -496,13 +502,13 @@ var opensslPreamble = `// go-libtor - Self-contained Tor from Go
 package libtor
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/openssl_config
-#cgo CFLAGS: -I${SRCDIR}/openssl
-#cgo CFLAGS: -I${SRCDIR}/openssl/include
-#cgo CFLAGS: -I${SRCDIR}/openssl/crypto/include
-#cgo CFLAGS: -I${SRCDIR}/openssl/crypto/ec/curve448
-#cgo CFLAGS: -I${SRCDIR}/openssl/crypto/ec/curve448/arch_32
-#cgo CFLAGS: -I${SRCDIR}/openssl/crypto/modes
+#cgo CFLAGS: -I${SRCDIR}/../openssl_config
+#cgo CFLAGS: -I${SRCDIR}/../openssl
+#cgo CFLAGS: -I${SRCDIR}/../openssl/include
+#cgo CFLAGS: -I${SRCDIR}/../openssl/crypto/include
+#cgo CFLAGS: -I${SRCDIR}/../openssl/crypto/ec/curve448
+#cgo CFLAGS: -I${SRCDIR}/../openssl/crypto/ec/curve448/arch_32
+#cgo CFLAGS: -I${SRCDIR}/../openssl/crypto/modes
 */
 import "C"
 `
@@ -517,7 +523,7 @@ package libtor
 #define OPENSSLDIR "/usr/local/ssl"
 #define ENGINESDIR "/usr/local/lib/engines"
 
-#include <%s.c>
+#include <../%s.c>
 */
 import "C"
 `
@@ -637,19 +643,19 @@ func wrapTor(nobuild bool) (string, string, error) {
 		if strings.HasSuffix(dep[1], "-c64") {
 			for _, arch := range []string{"amd64", "arm64"} {
 				gofile := strings.Replace(dep[1], "/", "_", -1) + "_" + arch + ".go"
-				ioutil.WriteFile("tor_"+gofile, []byte(fmt.Sprintf(torTemplate, dep[1])), 0644)
+				ioutil.WriteFile(filepath.Join("libtor", "tor_"+gofile), []byte(fmt.Sprintf(torTemplate, dep[1])), 0644)
 			}
 			for _, arch := range []string{"386", "arm"} {
 				gofile := strings.Replace(dep[1], "/", "_", -1) + "_" + arch + ".go"
-				ioutil.WriteFile("tor_"+gofile, []byte(fmt.Sprintf(torTemplate, strings.Replace(dep[1], "-c64", "", -1))), 0644)
+				ioutil.WriteFile(filepath.Join("libtor", "tor_"+gofile), []byte(fmt.Sprintf(torTemplate, strings.Replace(dep[1], "-c64", "", -1))), 0644)
 			}
 			continue
 		}
 		// Anything else gets wrapped directly
 		gofile := strings.Replace(dep[1], "/", "_", -1) + ".go"
-		ioutil.WriteFile("tor_"+gofile, []byte(fmt.Sprintf(torTemplate, dep[1])), 0644)
+		ioutil.WriteFile(filepath.Join("libtor", "tor_"+gofile), []byte(fmt.Sprintf(torTemplate, dep[1])), 0644)
 	}
-	ioutil.WriteFile("tor_preamble.go", []byte(torPreamble), 0644)
+	ioutil.WriteFile(filepath.Join("libtor", "tor_preamble.go"), []byte(torPreamble), 0644)
 
 	// Inject the configuration headers and ensure everything builds
 	os.MkdirAll("tor_config", 0755)
@@ -686,13 +692,13 @@ var torPreamble = `// go-libtor - Self-contained Tor from Go
 package libtor
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/tor_config
-#cgo CFLAGS: -I${SRCDIR}/tor
-#cgo CFLAGS: -I${SRCDIR}/tor/src
-#cgo CFLAGS: -I${SRCDIR}/tor/src/core/or
-#cgo CFLAGS: -I${SRCDIR}/tor/src/ext
-#cgo CFLAGS: -I${SRCDIR}/tor/src/ext/trunnel
-#cgo CFLAGS: -I${SRCDIR}/tor/src/feature/api
+#cgo CFLAGS: -I${SRCDIR}/../tor_config
+#cgo CFLAGS: -I${SRCDIR}/../tor
+#cgo CFLAGS: -I${SRCDIR}/../tor/src
+#cgo CFLAGS: -I${SRCDIR}/../tor/src/core/or
+#cgo CFLAGS: -I${SRCDIR}/../tor/src/ext
+#cgo CFLAGS: -I${SRCDIR}/../tor/src/ext/trunnel
+#cgo CFLAGS: -I${SRCDIR}/../tor/src/feature/api
 
 #cgo CFLAGS: -DED25519_CUSTOMRANDOM -DED25519_CUSTOMHASH -DED25519_SUFFIX=_donna
 
@@ -710,7 +716,7 @@ package libtor
 /*
 #define BUILDDIR ""
 
-#include <%s.c>
+#include <../%s.c>
 */
 import "C"
 `
