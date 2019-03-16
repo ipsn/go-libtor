@@ -245,6 +245,9 @@
 /* Define to 1 if you have the `strsep' function. */
 #define HAVE_STRSEP 1
 
+/* Define to 1 if you have the `strsignal' function. */
+#define HAVE_STRSIGNAL 1
+
 /* Define to 1 if you have the `strtok_r' function. */
 #define HAVE_STRTOK_R 1
 
