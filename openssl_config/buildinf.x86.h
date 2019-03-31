@@ -11,7 +11,7 @@
  */
 
 #define PLATFORM "platform: linux-x86"
-#define DATE "built on: Sat Mar 30 14:51:47 2019 +0100"
+#define DATE "built on: Mon Apr 1 08:46:33 2019 +1000"
 
 /*
  * Generate compiler_flags as an array of individual characters. This is a
