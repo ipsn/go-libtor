@@ -32,7 +32,7 @@ go get -u github.com/cretz/bine/tor
 
 ## Installation (Go modules)
 
-This library is compatible with Go modules. All you should need is to import `github.com/ipsn/go-libtor` and wait out the build. We suggest running `go build -v -x` the first time after adding the `go-libtor` dependency to avoid annoyance while Go silently builds the 1000+ C files.
+This library is compatible with Go modules. All you should need is to import `github.com/ipsn/go-libtor` and wait out the build. We suggest running `go build -v -x` the first time after adding the `go-libtor` dependency to avoid frustration, otherwise Go will build the 1000+ C files without any progress report.
 
 ## Usage
 

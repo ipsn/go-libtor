@@ -24,15 +24,16 @@ before_script:
   - git remote add upstream git@github.com:ipsn/go-libtor.git
   - git fetch upstream
   - git checkout master
-  - git describe --tags --abbrev=0
 
   # Update anything enw and wrap the libraries
   - go run build/wrap.go --nobuild
 
   # Commit all the changes made to the repository and bump the version
   - git add .
-  - if [ -n "$(git status --porcelain)" ]; then git commit --author="Péter Szilágyi <peterke@gmail.com>" -m "Updated libtor dependencies"; fi
-  - if [ -n "$(git status --porcelain)" ]; then tag=`git describe --tags --abbrev=0` && git tag "`echo $tag | cut -d '.' -f -2`.$((`echo $tag | cut -d '.' -f 3`+1))"; fi
+  - if [ -n "$(git status --porcelain)" ]; then
+      git commit --author="Péter Szilágyi <peterke@gmail.com>" -m "Updated libtor dependencies";
+      tag=`git describe --tags --abbrev=0` && git tag "`echo $tag | cut -d '.' -f -2`.$((`echo $tag | cut -d '.' -f 3`+1))";
+    fi
 
   # Ensure we can build the library both on libc and musl (amd64)
   - docker build -f ./build/Dockerfile.ubuntu .
