@@ -24,6 +24,7 @@ before_script:
   - git remote add upstream git@github.com:ipsn/go-libtor.git
   - git fetch upstream
   - git checkout master
+  - git describe --tags --abbrev=0
 
   # Update anything enw and wrap the libraries
   - go run build/wrap.go --nobuild
