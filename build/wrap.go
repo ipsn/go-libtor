@@ -233,9 +233,9 @@ func wrapLibevent(nobuild bool) (string, string, error) {
 		return "", "", err
 	}
 	// Retrieve the version of the current commit
-	winconf, _ := ioutil.ReadFile(filepath.Join("libevent", "WIN32-Code", "nmake", "event2", "event-config.h"))
-	numver := regexp.MustCompile("define EVENT__NUMERIC_VERSION (0x[0-9]{8})").FindSubmatch(winconf)[1]
-	strver := regexp.MustCompile("define EVENT__VERSION \"(.+)\"").FindSubmatch(winconf)[1]
+	conf, _ := ioutil.ReadFile(filepath.Join("libevent", "configure.ac"))
+	numver := regexp.MustCompile("AC_DEFINE\\(NUMERIC_VERSION, (0x[0-9]{8}),").FindSubmatch(conf)[1]
+	strver := regexp.MustCompile("AC_INIT\\(libevent,(.+)\\)").FindSubmatch(conf)[1]
 
 	// Hook the make system and gather the needed sources
 	maker := exec.Command("make", "--dry-run", "libevent.la")
