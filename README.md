@@ -16,7 +16,7 @@ The library is currently supported on:
  - Linux `amd64`, `386`, `arm64` and `arm`; both with `libc` and `musl`.
  - Android `amd64`, `386`, `arm64` and `arm`; specifically via `gomobile`.
 
-## Installation
+## Installation (GOPATH)
 
 The goal of this library is to be a self-contained Tor package for Go. As such, it plays nice with the usual `go get` workflow. That said, building Tor and all its dependencies locally can take quite a while, so it's recommended to run `go get` in verbose mode.
 
@@ -29,6 +29,10 @@ You'll also need the [`bine`](https://github.com/cretz/bine) bindings to interfa
 ```
 go get -u github.com/cretz/bine/tor
 ```
+
+## Installation (Go modules)
+
+This library is compatible with Go modules. All you should need is to import `github.com/ipsn/go-libtor` and wait out the build. We suggest running `go build -v -x` the first time after adding the `go-libtor` dependency to avoid annoyance while Go silently builds the 1000+ C files.
 
 ## Usage
 
