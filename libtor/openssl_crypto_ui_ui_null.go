@@ -4,6 +4,7 @@
 package libtor
 
 /*
+#define DSO_NONE
 #define OPENSSLDIR "/usr/local/ssl"
 #define ENGINESDIR "/usr/local/lib/engines"
 
