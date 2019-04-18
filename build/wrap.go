@@ -399,7 +399,7 @@ func wrapOpenSSL(nobuild bool) (string, string, error) {
 	strver := bytes.Replace(stables[len(stables)-1][1], []byte("_"), []byte("."), -1)[len("OpenSSL_"):]
 
 	// Configure the library for compilation
-	config := exec.Command("./config", "no-shared", "no-dso", "no-zlib", "no-asm", "no-async", "no-sctp")
+	config := exec.Command("./config", "no-shared", "no-zlib", "no-asm", "no-async", "no-sctp")
 	config.Dir = "openssl"
 	config.Stdout = os.Stdout
 	config.Stderr = os.Stderr
@@ -520,6 +520,7 @@ var opensslTemplate = `// go-libtor - Self-contained Tor from Go
 package libtor
 
 /*
+#define DSO_NONE
 #define OPENSSLDIR "/usr/local/ssl"
 #define ENGINESDIR "/usr/local/lib/engines"
 
