@@ -287,6 +287,9 @@
 /* Define to 1 if `__ss_family' is a member of `struct sockaddr_storage'. */
 /* #undef HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY */
 
+/* Define to 1 if the system has the type `struct sockaddr_un'. */
+#define HAVE_STRUCT_SOCKADDR_UN 1
+
 /* Define to 1 if you have the `sysctl' function. */
 #define HAVE_SYSCTL 1
 
@@ -343,6 +346,9 @@
 
 /* Define to 1 if you have the <sys/uio.h> header file. */
 #define HAVE_SYS_UIO_H 1
+
+/* Define to 1 if you have the <sys/un.h> header file. */
+#define HAVE_SYS_UN_H 1
 
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
