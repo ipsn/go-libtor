@@ -552,7 +552,6 @@ struct ssl_session_st {
     const SSL_CIPHER *cipher;
     unsigned long cipher_id;    /* when ASN.1 loaded, this needs to be used to
                                  * load the 'cipher' structure */
-    STACK_OF(SSL_CIPHER) *ciphers; /* ciphers offered by the client */
     CRYPTO_EX_DATA ex_data;     /* application specific data */
     /*
      * These are used to make removal of session-ids more efficient and to
@@ -562,13 +561,7 @@ struct ssl_session_st {
 
     struct {
         char *hostname;
-# ifndef OPENSSL_NO_EC
-        size_t ecpointformats_len;
-        unsigned char *ecpointformats; /* peer's list */
-# endif                         /* OPENSSL_NO_EC */
-        size_t supportedgroups_len;
-        uint16_t *supportedgroups; /* peer's list */
-    /* RFC4507 info */
+        /* RFC4507 info */
         unsigned char *tick; /* Session ticket */
         size_t ticklen;      /* Session ticket length */
         /* Session lifetime hint in seconds */
@@ -1137,6 +1130,7 @@ struct ssl_st {
     /* Per connection DANE state */
     SSL_DANE dane;
     /* crypto */
+    STACK_OF(SSL_CIPHER) *peer_ciphers;
     STACK_OF(SSL_CIPHER) *cipher_list;
     STACK_OF(SSL_CIPHER) *cipher_list_by_id;
     /* TLSv1.3 specific ciphersuites */
@@ -1300,10 +1294,19 @@ struct ssl_st {
         size_t ecpointformats_len;
         /* our list */
         unsigned char *ecpointformats;
+
+        size_t peer_ecpointformats_len;
+        /* peer's list */
+        unsigned char *peer_ecpointformats;
 # endif                         /* OPENSSL_NO_EC */
         size_t supportedgroups_len;
         /* our list */
         uint16_t *supportedgroups;
+
+        size_t peer_supportedgroups_len;
+         /* peer's list */
+        uint16_t *peer_supportedgroups;
+
         /* TLS Session Ticket extension override */
         TLS_SESSION_TICKET_EXT *session_ticket;
         /* TLS Session Ticket extension callback */
@@ -2240,8 +2243,8 @@ static ossl_inline int ssl_has_cert(const SSL *s, int idx)
 static ossl_inline void tls1_get_peer_groups(SSL *s, const uint16_t **pgroups,
                                              size_t *pgroupslen)
 {
-    *pgroups = s->session->ext.supportedgroups;
-    *pgroupslen = s->session->ext.supportedgroups_len;
+    *pgroups = s->ext.peer_supportedgroups;
+    *pgroupslen = s->ext.peer_supportedgroups_len;
 }
 
 # ifndef OPENSSL_UNIT_TEST
