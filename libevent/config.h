@@ -36,14 +36,6 @@
    don't. */
 #define HAVE_DECL_KERN_ARND 0
 
-/* Define to 1 if you have the declaration of `KERN_RANDOM', and to 0 if you
-   don't. */
-#define HAVE_DECL_KERN_RANDOM 1
-
-/* Define to 1 if you have the declaration of `RANDOM_UUID', and to 0 if you
-   don't. */
-#define HAVE_DECL_RANDOM_UUID 1
-
 /* Define if /dev/poll is available */
 /* #undef HAVE_DEVPOLL */
 
@@ -106,6 +98,9 @@
 
 /* Define to 1 if you have the `getprotobynumber' function. */
 #define HAVE_GETPROTOBYNUMBER 1
+
+/* Define to 1 if you have the `getrandom' function. */
+/* #undef HAVE_GETRANDOM */
 
 /* Define to 1 if you have the `getservbyname' function. */
 #define HAVE_GETSERVBYNAME 1
@@ -316,6 +311,9 @@
 
 /* Define to 1 if you have the <sys/queue.h> header file. */
 #define HAVE_SYS_QUEUE_H 1
+
+/* Define to 1 if you have the <sys/random.h> header file. */
+/* #undef HAVE_SYS_RANDOM_H */
 
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #define HAVE_SYS_RESOURCE_H 1
