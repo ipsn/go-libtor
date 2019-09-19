@@ -177,7 +177,7 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 
 extern int debug;
 
-static evutil_socket_t bind_socket_ai(struct evutil_addrinfo *, int reuse);
+static evutil_socket_t create_bind_socket_nonblock(struct evutil_addrinfo *, int reuse);
 static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
 static void name_from_addr(struct sockaddr *, ev_socklen_t, char **, char **);
 static struct evhttp_uri *evhttp_uri_parse_authority(char *source_uri);
@@ -1998,12 +1998,23 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 
 		ext_method.method = method;
 		ext_method.type = 0;
+		ext_method.flags = 0;
 
 		if (req->evcon->ext_method_cmp &&
 		    req->evcon->ext_method_cmp(&ext_method) == 0) {
-			/* TODO: make sure the other fields in ext_method are
+			/* make sure the other fields in ext_method are
 			 * not changed by the callback.
 			 */
+			if (strcmp(ext_method.method, method) != 0) {
+				event_warn("%s: modifying the 'method' field of ext_method_cmp's "
+					"parameter is not allowed", __func__);
+				return -1;
+			}
+			if (ext_method.flags != 0) {
+				event_warn("%s: modifying the 'flags' field of ext_method_cmp's "
+					"parameter is not allowed", __func__);
+				return -1;
+			}
 			type = ext_method.type;
 		}
 	}
@@ -4593,9 +4604,8 @@ name_from_addr(struct sockaddr *sa, ev_socklen_t salen,
 }
 
 /* Create a non-blocking socket and bind it */
-/* todo: rename this function */
 static evutil_socket_t
-bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
+create_bind_socket_nonblock(struct evutil_addrinfo *ai, int reuse)
 {
 	evutil_socket_t fd;
 
@@ -4669,14 +4679,14 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 
 	/* just create an unbound socket */
 	if (address == NULL && port == 0)
-		return bind_socket_ai(NULL, 0);
+		return create_bind_socket_nonblock(NULL, 0);
 
 	aitop = make_addrinfo(address, port);
 
 	if (aitop == NULL)
 		return (-1);
 
-	fd = bind_socket_ai(aitop, reuse);
+	fd = create_bind_socket_nonblock(aitop, reuse);
 
 	evutil_freeaddrinfo(aitop);
 
