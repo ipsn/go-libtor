@@ -405,6 +405,12 @@
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
 
+/* Define to 1 if you have the `_gmtime64' function. */
+/* #undef HAVE__GMTIME64 */
+
+/* Define to 1 if you have the `_gmtime64_s' function. */
+/* #undef HAVE__GMTIME64_S */
+
 /* Define to 1 if compiler have __FUNCTION__ */
 #define HAVE___FUNCTION__ 1
 
