@@ -14,10 +14,10 @@
 #include <string.h>
 #include <assert.h>
 #include <openssl/aes.h>
-#include "internal/evp_int.h"
-#include "modes_lcl.h"
+#include "crypto/evp.h"
+#include "modes_local.h"
 #include <openssl/rand.h>
-#include "evp_locl.h"
+#include "evp_local.h"
 
 typedef struct {
     union {
@@ -176,7 +176,7 @@ static void ctr64_inc(unsigned char *counter)
 # define HWAES_xts_decrypt aes_p8_xts_decrypt
 #endif
 
-#if     !defined(OPENSSL_NO_ASM) &&                     (  \
+#if     defined(OPENSSL_CPUID_OBJ) &&                   (  \
         ((defined(__i386)       || defined(__i386__)    || \
           defined(_M_IX86)) && defined(OPENSSL_IA32_SSE2))|| \
         defined(__x86_64)       || defined(__x86_64__)  || \

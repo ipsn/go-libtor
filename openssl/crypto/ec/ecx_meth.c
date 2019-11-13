@@ -12,10 +12,10 @@
 #include <openssl/x509.h>
 #include <openssl/ec.h>
 #include <openssl/rand.h>
-#include "internal/asn1_int.h"
-#include "internal/evp_int.h"
-#include "ec_lcl.h"
-#include "curve448/curve448_lcl.h"
+#include "crypto/asn1.h"
+#include "crypto/evp.h"
+#include "ec_local.h"
+#include "curve448/curve448_local.h"
 
 #define X25519_BITS          253
 #define X25519_SECURITY_BITS 128

@@ -30,11 +30,11 @@
 
 /* Define to 1 if you have the declaration of `CTL_KERN', and to 0 if you
    don't. */
-#define HAVE_DECL_CTL_KERN 1
+/* #undef HAVE_DECL_CTL_KERN */
 
 /* Define to 1 if you have the declaration of `KERN_ARND', and to 0 if you
    don't. */
-#define HAVE_DECL_KERN_ARND 0
+/* #undef HAVE_DECL_KERN_ARND */
 
 /* Define if /dev/poll is available */
 /* #undef HAVE_DEVPOLL */
@@ -331,7 +331,7 @@
 #define HAVE_SYS_STAT_H 1
 
 /* Define to 1 if you have the <sys/sysctl.h> header file. */
-#define HAVE_SYS_SYSCTL_H 1
+/* #undef HAVE_SYS_SYSCTL_H */
 
 /* Define to 1 if you have the <sys/timerfd.h> header file. */
 #define HAVE_SYS_TIMERFD_H 1
@@ -417,8 +417,7 @@
 /* Define to 1 if compiler have __func__ */
 #define HAVE___func__ 1
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
 
 /* Numeric representation of the version */

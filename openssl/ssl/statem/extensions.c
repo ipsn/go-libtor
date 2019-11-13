@@ -10,8 +10,8 @@
 #include <string.h>
 #include "internal/nelem.h"
 #include "internal/cryptlib.h"
-#include "../ssl_locl.h"
-#include "statem_locl.h"
+#include "../ssl_local.h"
+#include "statem_local.h"
 #include "internal/cryptlib.h"
 
 static int final_renegotiate(SSL *s, unsigned int context, int sent);
@@ -94,7 +94,7 @@ typedef struct extensions_definition_st {
 /*
  * Definitions of all built-in extensions. NOTE: Changes in the number or order
  * of these extensions should be mirrored with equivalent changes to the
- * indexes ( TLSEXT_IDX_* ) defined in ssl_locl.h.
+ * indexes ( TLSEXT_IDX_* ) defined in ssl_local.h.
  * Each extension has an initialiser, a client and
  * server side parser and a finaliser. The initialiser is called (if the
  * extension is relevant to the given context) even if we did not see the
@@ -1449,7 +1449,7 @@ int tls_psk_do_binder(SSL *s, const EVP_MD *md, const unsigned char *msgstart,
     unsigned char finishedkey[EVP_MAX_MD_SIZE], tmpbinder[EVP_MAX_MD_SIZE];
     unsigned char *early_secret;
 #ifdef CHARSET_EBCDIC
-    static const unsigned char resumption_label[] = { 0x72, 0x65, 0x64, 0x20, 0x62, 0x69, 0x6E, 0x64, 0x65, 0x72, 0x00 };
+    static const unsigned char resumption_label[] = { 0x72, 0x65, 0x73, 0x20, 0x62, 0x69, 0x6E, 0x64, 0x65, 0x72, 0x00 };
     static const unsigned char external_label[]   = { 0x65, 0x78, 0x74, 0x20, 0x62, 0x69, 0x6E, 0x64, 0x65, 0x72, 0x00 };
 #else
     static const unsigned char resumption_label[] = "res binder";

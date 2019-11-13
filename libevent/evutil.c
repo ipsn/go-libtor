@@ -31,6 +31,9 @@
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
+#ifdef EVENT__HAVE_AFUNIX_H
+#include <afunix.h>
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
@@ -41,6 +44,7 @@
 /* For structs needed by GetAdaptersAddresses */
 #define _WIN32_WINNT 0x0501
 #include <iphlpapi.h>
+#include <netioapi.h>
 #endif
 
 #include <sys/types.h>
@@ -74,6 +78,9 @@
 #endif
 #include <time.h>
 #include <sys/stat.h>
+#ifndef _WIN32
+#include <net/if.h>
+#endif
 #ifdef EVENT__HAVE_IFADDRS_H
 #include <ifaddrs.h>
 #endif
@@ -100,6 +107,10 @@
 #define stat _stati64
 #endif
 #define mode_t int
+#endif
+
+#ifdef EVENT__HAVE_AFUNIX_H
+int have_working_afunix_ = -1;
 #endif
 
 int
@@ -194,13 +205,187 @@ evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
 	return 0;
 }
 
+#ifdef _WIN32
+
+static int
+create_tmpfile(char tmpfile[MAX_PATH])
+{
+	char short_path[MAX_PATH] = {0};
+	char long_path[MAX_PATH] = {0};
+	char *tmp_file = tmpfile;
+
+	GetTempPathA(MAX_PATH, short_path);
+	GetLongPathNameA(short_path, long_path, MAX_PATH);
+	if (!GetTempFileNameA(long_path, NULL, 0, tmp_file)) {
+		event_warnx("GetTempFileName failed: %d", EVUTIL_SOCKET_ERROR());
+		return -1;
+	}
+	return 0;
+}
+
+#ifdef EVENT__HAVE_AFUNIX_H
+/* Test whether Unix domain socket works.
+ * Return 1 if it works, otherwise 0 		*/
+int
+evutil_check_working_afunix_()
+{
+	/* Windows 10 began to support Unix domain socket. Let's just try
+	 * socket(AF_UNIX, , ) and fall back to socket(AF_INET, , ).
+	 * https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
+	 */
+	evutil_socket_t sd = -1;
+	if (have_working_afunix_ < 0) {
+		if ((sd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+			have_working_afunix_ = 0;
+		} else {
+			have_working_afunix_ = 1;
+			evutil_closesocket(sd);
+		}
+	}
+	return have_working_afunix_;
+}
+
+/* XXX Copy from evutil_ersatz_socketpair_() */
+static int
+evutil_win_socketpair_afunix(int family, int type, int protocol,
+    evutil_socket_t fd[2])
+{
+#define ERR(e) WSA##e
+	evutil_socket_t listener = -1;
+	evutil_socket_t connector = -1;
+	evutil_socket_t acceptor = -1;
+
+	struct sockaddr_un listen_addr;
+	struct sockaddr_un connect_addr;
+	char tmp_file[MAX_PATH] = {0};
+
+	ev_socklen_t size;
+	int saved_errno = -1;
+
+	if (!fd) {
+		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
+		return -1;
+	}
+
+	listener = socket(family, type, 0);
+	if (listener < 0)
+		return -1;
+	memset(&listen_addr, 0, sizeof(listen_addr));
+
+	if (create_tmpfile(tmp_file)) {
+		goto tidy_up_and_fail;
+	}
+	DeleteFileA(tmp_file);
+	listen_addr.sun_family = AF_UNIX;
+	if (strlcpy(listen_addr.sun_path, tmp_file, UNIX_PATH_MAX) >=
+		UNIX_PATH_MAX) {
+		event_warnx("Temp file name is too long");
+		goto tidy_up_and_fail;
+	}
+
+	if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
+		== -1)
+		goto tidy_up_and_fail;
+	if (listen(listener, 1) == -1)
+		goto tidy_up_and_fail;
+
+	connector = socket(family, type, 0);
+	if (connector < 0)
+		goto tidy_up_and_fail;
+
+	memset(&connect_addr, 0, sizeof(connect_addr));
+
+	/* We want to find out the port number to connect to.  */
+	size = sizeof(connect_addr);
+	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
+		goto tidy_up_and_fail;
+
+	if (connect(connector, (struct sockaddr *) &connect_addr,
+				sizeof(connect_addr)) == -1)
+		goto tidy_up_and_fail;
+
+	size = sizeof(listen_addr);
+	acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
+	if (acceptor < 0)
+		goto tidy_up_and_fail;
+	if (size != sizeof(listen_addr))
+		goto abort_tidy_up_and_fail;
+	/* Now check we are talking to ourself by matching port and host on the
+	   two sockets.	 */
+	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
+		goto tidy_up_and_fail;
+
+	if (size != sizeof(connect_addr) ||
+	    listen_addr.sun_family != connect_addr.sun_family ||
+	    evutil_ascii_strcasecmp(listen_addr.sun_path, connect_addr.sun_path))
+		goto abort_tidy_up_and_fail;
+
+	evutil_closesocket(listener);
+	fd[0] = connector;
+	fd[1] = acceptor;
+
+	return 0;
+
+ abort_tidy_up_and_fail:
+	saved_errno = ERR(ECONNABORTED);
+ tidy_up_and_fail:
+	if (saved_errno < 0)
+		saved_errno = EVUTIL_SOCKET_ERROR();
+	if (listener != -1)
+		evutil_closesocket(listener);
+	if (connector != -1)
+		evutil_closesocket(connector);
+	if (acceptor != -1)
+		evutil_closesocket(acceptor);
+	if (tmp_file[0])
+		DeleteFileA(tmp_file);
+
+	EVUTIL_SET_SOCKET_ERROR(saved_errno);
+	return -1;
+#undef ERR
+}
+#endif
+
+static int
+evutil_win_socketpair(int family, int type, int protocol,
+    evutil_socket_t fd[2])
+{
+#ifdef EVENT__HAVE_AFUNIX_H
+	/* The family only support AF_UNIX and AF_INET */
+	if (protocol || (family != AF_UNIX && family != AF_INET)) {
+		EVUTIL_SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
+		return -1;
+	}
+	if (evutil_check_working_afunix_()) {
+		/* If the AF_UNIX socket works, we will change the family to
+		 * AF_UNIX forcely. */
+		family = AF_UNIX;
+		if (type != SOCK_STREAM) {
+			/* Win10 does not support AF_UNIX socket of a type other
+			 * than SOCK_STREAM still now. */
+			EVUTIL_SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
+			return -1;
+		}
+	} else {
+		/* If the AF_UNIX socket does not work, we will change the
+		 * family to AF_INET forcely. */
+		family = AF_INET;
+	}
+	if (family == AF_UNIX)
+		return evutil_win_socketpair_afunix(family, type, protocol, fd);
+
+#endif
+	return evutil_ersatz_socketpair_(family, type, protocol, fd);
+}
+#endif
+
 int
 evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 {
 #ifndef _WIN32
 	return socketpair(family, type, protocol, fd);
 #else
-	return evutil_ersatz_socketpair_(family, type, protocol, fd);
+	return evutil_win_socketpair(family, type, protocol, fd);
 #endif
 }
 
@@ -990,6 +1175,7 @@ evutil_getaddrinfo_common_(const char *nodename, const char *servname,
     struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum)
 {
 	int port = 0;
+	unsigned int if_index;
 	const char *pname;
 
 	if (nodename == NULL && servname == NULL)
@@ -1063,10 +1249,12 @@ evutil_getaddrinfo_common_(const char *nodename, const char *servname,
 	if (hints->ai_family == PF_INET6 || hints->ai_family == PF_UNSPEC) {
 		struct sockaddr_in6 sin6;
 		memset(&sin6, 0, sizeof(sin6));
-		if (1==evutil_inet_pton(AF_INET6, nodename, &sin6.sin6_addr)) {
+		if (1 == evutil_inet_pton_scope(
+			AF_INET6, nodename, &sin6.sin6_addr, &if_index)) {
 			/* Got an ipv6 address. */
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_port = htons(port);
+			sin6.sin6_scope_id = if_index;
 			*res = evutil_new_addrinfo_((struct sockaddr*)&sin6,
 			    sizeof(sin6), hints);
 			if (!*res)
@@ -1982,6 +2170,41 @@ evutil_inet_ntop(int af, const void *src, char *dst, size_t len)
 }
 
 int
+evutil_inet_pton_scope(int af, const char *src, void *dst, unsigned *indexp)
+{
+	int r;
+	unsigned if_index;
+	char *check, *cp, *tmp_src;
+
+	*indexp = 0; /* Reasonable default */
+
+	/* Bail out if not IPv6 */
+	if (af != AF_INET6)
+		return evutil_inet_pton(af, src, dst);
+
+	cp = strchr(src, '%');
+
+	/* Bail out if no zone ID */
+	if (cp == NULL)
+		return evutil_inet_pton(af, src, dst);
+
+	if_index = if_nametoindex(cp + 1);
+	if (if_index == 0) {
+		/* Could be numeric */
+		if_index = strtoul(cp + 1, &check, 10);
+		if (check[0] != '\0')
+			return 0;
+	}
+	*indexp = if_index;
+	tmp_src = mm_strdup(src);
+	cp = strchr(tmp_src, '%');
+	*cp = '\0';
+	r = evutil_inet_pton(af, tmp_src, dst);
+	free(tmp_src);
+	return r;
+}
+
+int
 evutil_inet_pton(int af, const char *src, void *dst)
 {
 #if defined(EVENT__HAVE_INET_PTON) && !defined(USE_INTERNAL_PTON)
@@ -2097,6 +2320,7 @@ int
 evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *outlen)
 {
 	int port;
+	unsigned int if_index;
 	char buf[128];
 	const char *cp, *addr_part, *port_part;
 	int is_ipv6;
@@ -2166,10 +2390,13 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 #endif
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_port = htons(port);
-		if (1 != evutil_inet_pton(AF_INET6, addr_part, &sin6.sin6_addr))
+		if (1 != evutil_inet_pton_scope(
+			AF_INET6, addr_part, &sin6.sin6_addr, &if_index)) {
 			return -1;
+		}
 		if ((int)sizeof(sin6) > *outlen)
 			return -1;
+		sin6.sin6_scope_id = if_index;
 		memset(out, 0, *outlen);
 		memcpy(out, &sin6, sizeof(sin6));
 		*outlen = sizeof(sin6);
@@ -2655,7 +2882,7 @@ evutil_make_internal_pipe_(evutil_socket_t fd[2])
 	}
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(EVENT__HAVE_AFUNIX_H)
 #define LOCAL_SOCKETPAIR_AF AF_INET
 #else
 #define LOCAL_SOCKETPAIR_AF AF_UNIX

@@ -21,8 +21,8 @@
 #include <openssl/cmac.h>
 #include <openssl/engine.h>
 
-#include "internal/asn1_int.h"
-#include "internal/evp_int.h"
+#include "crypto/asn1.h"
+#include "crypto/evp.h"
 
 static void EVP_PKEY_free_it(EVP_PKEY *x);
 
@@ -465,7 +465,7 @@ int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key)
 
 RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
 {
-    if (pkey->type != EVP_PKEY_RSA) {
+    if (pkey->type != EVP_PKEY_RSA && pkey->type != EVP_PKEY_RSA_PSS) {
         EVPerr(EVP_F_EVP_PKEY_GET0_RSA, EVP_R_EXPECTING_AN_RSA_KEY);
         return NULL;
     }
