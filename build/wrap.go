@@ -149,7 +149,7 @@ func wrapZlib(nobuild bool) (string, string, error) {
 
 	// Ensure the library builds
 	if !nobuild {
-		builder := exec.Command("go", "install")
+		builder := exec.Command("go", "install", "./libtor")
 		builder.Stdout = os.Stdout
 		builder.Stderr = os.Stderr
 
@@ -292,7 +292,7 @@ func wrapLibevent(nobuild bool) (string, string, error) {
 		ioutil.WriteFile(filepath.Join("libevent_config", "event2", fmt.Sprintf("event-config%s.h", arch)), buff.Bytes(), 0644)
 	}
 	if !nobuild {
-		builder := exec.Command("go", "install")
+		builder := exec.Command("go", "install", "./libtor")
 		builder.Stdout = os.Stdout
 		builder.Stderr = os.Stderr
 
@@ -458,14 +458,14 @@ func wrapOpenSSL(nobuild bool) (string, string, error) {
 	ioutil.WriteFile(filepath.Join("libtor", "openssl_preamble.go"), []byte(opensslPreamble), 0644)
 
 	// Inject the configuration headers and ensure everything builds
-	os.MkdirAll(filepath.Join("openssl_config", "internal"), 0755)
+	os.MkdirAll(filepath.Join("openssl_config", "crypto"), 0755)
 
 	blob, _ := ioutil.ReadFile(filepath.Join("config", "openssl", "dso_conf.h"))
-	ioutil.WriteFile(filepath.Join("openssl_config", "internal", "dso_conf.h"), blob, 0644)
+	ioutil.WriteFile(filepath.Join("openssl_config", "crypto", "dso_conf.h"), blob, 0644)
 
 	for _, arch := range []string{"", ".x64", ".x86"} {
 		blob, _ = ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("bn_conf%s.h", arch)))
-		ioutil.WriteFile(filepath.Join("openssl_config", "internal", fmt.Sprintf("bn_conf%s.h", arch)), blob, 0644)
+		ioutil.WriteFile(filepath.Join("openssl_config", "crypto", fmt.Sprintf("bn_conf%s.h", arch)), blob, 0644)
 	}
 	for _, arch := range []string{"", ".x64", ".x86"} {
 		blob, _ = ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("buildinf%s.h", arch)))
@@ -486,7 +486,7 @@ func wrapOpenSSL(nobuild bool) (string, string, error) {
 		ioutil.WriteFile(filepath.Join("openssl_config", "openssl", fmt.Sprintf("opensslconf%s.h", arch)), blob, 0644)
 	}
 	if !nobuild {
-		builder := exec.Command("go", "install")
+		builder := exec.Command("go", "install", "./libtor")
 		builder.Stdout = os.Stdout
 		builder.Stderr = os.Stderr
 
@@ -505,7 +505,6 @@ package libtor
 #cgo CFLAGS: -I${SRCDIR}/../openssl_config
 #cgo CFLAGS: -I${SRCDIR}/../openssl
 #cgo CFLAGS: -I${SRCDIR}/../openssl/include
-#cgo CFLAGS: -I${SRCDIR}/../openssl/crypto/include
 #cgo CFLAGS: -I${SRCDIR}/../openssl/crypto/ec/curve448
 #cgo CFLAGS: -I${SRCDIR}/../openssl/crypto/ec/curve448/arch_32
 #cgo CFLAGS: -I${SRCDIR}/../openssl/crypto/modes
@@ -677,7 +676,7 @@ func wrapTor(nobuild bool) (string, string, error) {
 	ioutil.WriteFile(filepath.Join("tor_config", "micro-revision.i"), blob, 0644)
 
 	if !nobuild {
-		builder := exec.Command("go", "install")
+		builder := exec.Command("go", "install", "./libtor")
 		builder.Stdout = os.Stdout
 		builder.Stderr = os.Stderr
 

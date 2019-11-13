@@ -1,6 +1,6 @@
 language: go
 
-go: 1.12.x
+go: 1.13.x
 
 # Cron jobs push tags, don't insta-rebuild after a cron task
 branches:
