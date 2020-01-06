@@ -3626,28 +3626,18 @@ $code.=<<___;
 
 	or	$acc5, $acc4			# see if result is zero
 	or	$acc0, $acc4
+	or	$acc1, $acc4			# !is_equal(U1, U2)
+
+	movq	%xmm2, $acc0			# in1infty | in2infty
+	movq	%xmm3, $acc1			# !is_equal(S1, S2)
+
+	or	$acc0, $acc4
 	or	$acc1, $acc4
 
+	# if (!is_equal(U1, U2) | in1infty | in2infty | !is_equal(S1, S2))
 	.byte	0x3e				# predict taken
-	jnz	.Ladd_proceed$x			# is_equal(U1,U2)?
-	movq	%xmm2, $acc0
-	movq	%xmm3, $acc1
-	test	$acc0, $acc0
-	jnz	.Ladd_proceed$x			# (in1infty || in2infty)?
-	test	$acc1, $acc1
-	jz	.Ladd_double$x			# is_equal(S1,S2)?
+	jnz	.Ladd_proceed$x
 
-	movq	%xmm0, $r_ptr			# restore $r_ptr
-	pxor	%xmm0, %xmm0
-	movdqu	%xmm0, 0x00($r_ptr)
-	movdqu	%xmm0, 0x10($r_ptr)
-	movdqu	%xmm0, 0x20($r_ptr)
-	movdqu	%xmm0, 0x30($r_ptr)
-	movdqu	%xmm0, 0x40($r_ptr)
-	movdqu	%xmm0, 0x50($r_ptr)
-	jmp	.Ladd_done$x
-
-.align	32
 .Ladd_double$x:
 	movq	%xmm1, $a_ptr			# restore $a_ptr
 	movq	%xmm0, $r_ptr			# restore $r_ptr
