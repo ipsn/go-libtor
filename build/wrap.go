@@ -620,6 +620,21 @@ func wrapTor(nobuild bool) (string, string, error) {
 		}
 		os.Remove(filepath.Join("tor", "src", file.Name()))
 	}
+	// Wipe all the weird .Po files containing dummies
+	if err := filepath.Walk(filepath.Join("tor", "src"),
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if filepath.Base(path) == ".deps" {
+				os.RemoveAll(path)
+				return filepath.SkipDir
+			}
+			return nil
+		},
+	); err != nil {
+		return "", "", err
+	}
 	// Fix the string compatibility source to load the correct code
 	blob, _ := ioutil.ReadFile(filepath.Join("tor", "src", "lib", "string", "compat_string.c"))
 	ioutil.WriteFile(filepath.Join("tor", "src", "lib", "string", "compat_string.c"), bytes.Replace(blob, []byte("strlcpy.c"), []byte("ext/strlcpy.c"), -1), 0644)
