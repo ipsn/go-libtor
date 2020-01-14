@@ -132,6 +132,9 @@
 /* Define to 1 if you have the `mach_absolute_time' function. */
 /* #undef HAVE_MACH_ABSOLUTE_TIME */
 
+/* Define to 1 if you have the <mach/mach.h> header file. */
+/* #undef HAVE_MACH_MACH_H */
+
 /* Define to 1 if you have the <mach/mach_time.h> header file. */
 /* #undef HAVE_MACH_MACH_TIME_H */
 
