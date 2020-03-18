@@ -13,6 +13,9 @@
 /* Define to 1 if you have the `accept4' function. */
 #define HAVE_ACCEPT4 1
 
+/* Define to 1 if you have the <afunix.h> header file. */
+/* #undef HAVE_AFUNIX_H */
+
 /* Define to 1 if you have the `arc4random' function. */
 /* #undef HAVE_ARC4RANDOM */
 
@@ -125,6 +128,9 @@
 
 /* Define to 1 if you have the `kqueue' function. */
 /* #undef HAVE_KQUEUE */
+
+/* Define to 1 if you have the `ws2_32' library (-lws2_32). */
+/* #undef HAVE_LIBWS2_32 */
 
 /* Define if the system has zlib */
 #define HAVE_LIBZ 1
