@@ -408,6 +408,9 @@
 /* Define to 1 if you have the `vasprintf' function. */
 #define HAVE_VASPRINTF 1
 
+/* Define if your system supports the wepoll module */
+/* #undef HAVE_WEPOLL */
+
 /* Define if kqueue works correctly with pipes */
 /* #undef HAVE_WORKING_KQUEUE */
 
