@@ -144,6 +144,12 @@
 /* Define to 1 if you have the <mach/mach_time.h> header file. */
 /* #undef HAVE_MACH_MACH_TIME_H */
 
+/* Define if the system has mbedtls */
+/* #undef HAVE_MBEDTLS */
+
+/* Define to 1 if you have the <mbedtls/ssl.h> header file. */
+/* #undef HAVE_MBEDTLS_SSL_H */
+
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
