@@ -201,6 +201,9 @@
 /* Define if we have pthreads on this system */
 #define HAVE_PTHREADS 1
 
+/* Define to 1 if you have the `pthread_mutexattr_setprotocol' function. */
+#define HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL 1
+
 /* Define to 1 if you have the `putenv' function. */
 #define HAVE_PUTENV 1
 
