@@ -678,7 +678,7 @@ func wrapTor(nobuild bool) (string, string, error) {
 	// Inject the configuration headers and ensure everything builds
 	os.MkdirAll("tor_config", 0755)
 
-	for _, arch := range []string{"", ".linux64", ".linux32", ".android64", ".android32"} {
+	for _, arch := range []string{"", ".linux64", ".linux32", ".android64", ".android32", ".darwin64"} {
 		blob, _ := ioutil.ReadFile(filepath.Join("config", "tor", fmt.Sprintf("orconfig%s.h", arch)))
 		tmpl, err := template.New("").Parse(string(blob))
 		if err != nil {

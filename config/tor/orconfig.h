@@ -6,6 +6,10 @@
   #include "orconfig.linux32.h"
 #endif
 
+#ifdef ARCH_DARWIN64
+  #include "orconfig.darwin64.h"
+#endif
+
 #ifdef ARCH_ANDROID64
   #include "orconfig.android64.h"
 #endif
