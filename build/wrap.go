@@ -280,8 +280,8 @@ func wrapLibevent(nobuild bool) (string, string, error) {
 	// Inject the configuration headers and ensure everything builds
 	os.MkdirAll(filepath.Join("libevent_config", "event2"), 0755)
 
-	for _, arch := range []string{"", "linux64", "linux32", "android64", "android32"} {
-		blob, _ := ioutil.ReadFile(filepath.Join("config", "libevent", fmt.Sprintf("event-config.%s.h", arch)))
+	for _, arch := range []string{"", ".linux64", ".linux32", ".android64", ".android32", ".darwin64"} {
+		blob, _ := ioutil.ReadFile(filepath.Join("config", "libevent", fmt.Sprintf("event-config%s.h", arch)))
 		tmpl, err := template.New("").Parse(string(blob))
 		if err != nil {
 			return "", "", err
@@ -290,7 +290,7 @@ func wrapLibevent(nobuild bool) (string, string, error) {
 		if err := tmpl.Execute(buff, struct{ NumVer, StrVer string }{string(numver), string(strver)}); err != nil {
 			return "", "", err
 		}
-		ioutil.WriteFile(filepath.Join("libevent_config", "event2", fmt.Sprintf("event-config.%s.h", arch)), buff.Bytes(), 0644)
+		ioutil.WriteFile(filepath.Join("libevent_config", "event2", fmt.Sprintf("event-config%s.h", arch)), buff.Bytes(), 0644)
 	}
 	if !nobuild {
 		builder := exec.Command("go", "install", "./libtor")
@@ -461,15 +461,17 @@ func wrapOpenSSL(nobuild bool) (string, string, error) {
 	// Inject the configuration headers and ensure everything builds
 	os.MkdirAll(filepath.Join("openssl_config", "crypto"), 0755)
 
-	blob, _ := ioutil.ReadFile(filepath.Join("config", "openssl", "dso_conf.h"))
-	ioutil.WriteFile(filepath.Join("openssl_config", "crypto", "dso_conf.h"), blob, 0644)
+	for _, arch := range []string{"", ".x64", ".x86", ".darwin"} {
+		blob, _ := ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("dso_conf%s.h", arch)))
+		ioutil.WriteFile(filepath.Join("openssl_config", "crypto", fmt.Sprintf("dso_conf%s.h", arch)), blob, 0644)
+	}
 
 	for _, arch := range []string{"", ".x64", ".x86"} {
-		blob, _ = ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("bn_conf%s.h", arch)))
+		blob, _ := ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("bn_conf%s.h", arch)))
 		ioutil.WriteFile(filepath.Join("openssl_config", "crypto", fmt.Sprintf("bn_conf%s.h", arch)), blob, 0644)
 	}
-	for _, arch := range []string{"", ".x64", ".x86"} {
-		blob, _ = ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("buildinf%s.h", arch)))
+	for _, arch := range []string{"", ".x64", ".x86", ".darwin64"} {
+		blob, _ := ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("buildinf%s.h", arch)))
 		tmpl, err := template.New("").Parse(string(blob))
 		if err != nil {
 			return "", "", err
@@ -482,8 +484,8 @@ func wrapOpenSSL(nobuild bool) (string, string, error) {
 	}
 	os.MkdirAll(filepath.Join("openssl_config", "openssl"), 0755)
 
-	for _, arch := range []string{"", ".x64", ".x86"} {
-		blob, _ = ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("opensslconf%s.h", arch)))
+	for _, arch := range []string{"", ".x64", ".x86", ".darwin64"} {
+		blob, _ := ioutil.ReadFile(filepath.Join("config", "openssl", fmt.Sprintf("opensslconf%s.h", arch)))
 		ioutil.WriteFile(filepath.Join("openssl_config", "openssl", fmt.Sprintf("opensslconf%s.h", arch)), blob, 0644)
 	}
 	if !nobuild {
@@ -676,8 +678,8 @@ func wrapTor(nobuild bool) (string, string, error) {
 	// Inject the configuration headers and ensure everything builds
 	os.MkdirAll("tor_config", 0755)
 
-	for _, arch := range []string{"", "linux64", "linux32", "android64", "android32"} {
-		blob, _ := ioutil.ReadFile(filepath.Join("config", "tor", fmt.Sprintf("orconfig.%s.h", arch)))
+	for _, arch := range []string{"", ".linux64", ".linux32", ".android64", ".android32"} {
+		blob, _ := ioutil.ReadFile(filepath.Join("config", "tor", fmt.Sprintf("orconfig%s.h", arch)))
 		tmpl, err := template.New("").Parse(string(blob))
 		if err != nil {
 			return "", "", err
@@ -686,7 +688,7 @@ func wrapTor(nobuild bool) (string, string, error) {
 		if err := tmpl.Execute(buff, struct{ StrVer string }{string(strver)}); err != nil {
 			return "", "", err
 		}
-		ioutil.WriteFile(filepath.Join("tor_config", fmt.Sprintf("orconfig.%s.h", arch)), buff.Bytes(), 0644)
+		ioutil.WriteFile(filepath.Join("tor_config", fmt.Sprintf("orconfig%s.h", arch)), buff.Bytes(), 0644)
 	}
 	blob, _ = ioutil.ReadFile(filepath.Join("config", "tor", "micro-revision.i"))
 	ioutil.WriteFile(filepath.Join("tor_config", "micro-revision.i"), blob, 0644)
