@@ -1,0 +1,46 @@
+name: Go
+
+on:
+ push:
+  branches: [ master ]
+
+jobs:
+ name: Linux
+  runs-on: ubuntu-latest
+  steps:
+   - name: Set up Go 1.x
+     uses: actions/setup-go@v2
+     with:
+      go-version: ^1.14
+     id: go
+
+   - name: Check out code into the Go module directory
+     uses: actions/checkout@v2
+      with:
+       fetch-depth: 0 # otherwise, push refs to dest repo will fail
+
+   - name: Run Script
+     run: build/linux.sh
+   - uses: actions/upload-artifact@v2
+      with:
+       name: go-libtor
+       path: /tmp/go-libtor.tar
+ name: Darwin
+  runs-on: macos-latest
+  needs: Linux
+  steps:
+   - name: Set up Go 1.x
+     uses: actions/setup-go@v2
+     with:
+      go-version: ^1.14
+     id: go
+
+   - name: Download the build from linux
+
+   - uses: actions/download-artifact@v2
+      with:
+       name: go-libtor
+       path: /tmp/
+
+   - name: Run Script
+     run: build/darwin.sh
