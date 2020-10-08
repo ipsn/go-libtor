@@ -379,8 +379,12 @@ or_connection_new(int type, int socket_family)
 
   connection_or_set_canonical(or_conn, 0);
 
-  if (type == CONN_TYPE_EXT_OR)
+  if (type == CONN_TYPE_EXT_OR) {
+    /* If we aren't told an address for this connection, we should
+     * presume it isn't local, and should be rate-limited. */
+    TO_CONN(or_conn)->always_rate_limit_as_remote = 1;
     connection_or_set_ext_or_identifier(or_conn);
+  }
 
   return or_conn;
 }
@@ -2923,7 +2927,14 @@ retry_all_listeners(smartlist_t *new_conns, int close_all_noncontrol)
                                                   &skip, &addr_in_use);
     }
 
-    tor_assert(new_conn);
+    /* There are many reasons why we can't open a new listener port so in case
+     * we hit those, bail early so tor can stop. */
+    if (!new_conn) {
+      log_warn(LD_NET, "Unable to create listener port: %s:%d",
+               fmt_addr(&r->new_port->addr), r->new_port->port);
+      retval = -1;
+      break;
+    }
 
     smartlist_add(new_conns, new_conn);
 
@@ -3025,6 +3036,7 @@ connection_is_rate_limited(connection_t *conn)
   if (conn->linked)
     return 0; /* Internal connection */
   else if (! options->CountPrivateBandwidth &&
+           ! conn->always_rate_limit_as_remote &&
            (tor_addr_family(&conn->addr) == AF_UNSPEC || /* no address */
             tor_addr_family(&conn->addr) == AF_UNIX ||   /* no address */
             tor_addr_is_internal(&conn->addr, 0)))
