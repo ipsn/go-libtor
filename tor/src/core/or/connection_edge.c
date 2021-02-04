@@ -4003,6 +4003,15 @@ my_exit_policy_rejects(const tor_addr_t *addr,
   return 0;
 }
 
+/** Return true iff the consensus allows network reentry. The default value is
+ * false if the parameter is not found. */
+static bool
+network_reentry_is_allowed(void)
+{
+  /* Default is false, re-entry is not allowed. */
+  return !!networkstatus_get_param(NULL, "allow-network-reentry", 0, 0, 1);
+}
+
 /** Connect to conn's specified addr and port. If it worked, conn
  * has now been added to the connection_array.
  *
@@ -4030,6 +4039,34 @@ connection_exit_connect(edge_connection_t *edge_conn)
              escaped_safe_str_client(conn->address), conn->port,
              why_failed_exit_policy);
     connection_edge_end(edge_conn, END_STREAM_REASON_EXITPOLICY);
+    circuit_detach_stream(circuit_get_by_edge_conn(edge_conn), edge_conn);
+    connection_free(conn);
+    return;
+  }
+
+  /* Next, check for attempts to connect back into the Tor network. We don't
+   * want to allow these for the same reason we don't want to allow
+   * infinite-length circuits (see "A Practical Congestion Attack on Tor Using
+   * Long Paths", Usenix Security 2009). See also ticket 2667.
+   *
+   * Skip this if the network reentry is allowed (known from the consensus).
+   *
+   * The TORPROTOCOL reason is used instead of EXITPOLICY so client do NOT
+   * attempt to retry connecting onto another circuit that will also fail
+   * bringing considerable more load on the network if so.
+   *
+   * Since the address+port set here is a bloomfilter, in very rare cases, the
+   * check will create a false positive meaning that the destination could
+   * actually be legit and thus being denied exit. However, sending back a
+   * reason that makes the client retry results in much worst consequences in
+   * case of an attack so this is a small price to pay. */
+  if (!connection_edge_is_rendezvous_stream(edge_conn) &&
+      !network_reentry_is_allowed() &&
+      nodelist_reentry_contains(&conn->addr, conn->port)) {
+    log_info(LD_EXIT, "%s:%d tried to connect back to a known relay address. "
+                      "Closing.", escaped_safe_str_client(conn->address),
+             conn->port);
+    connection_edge_end(edge_conn, END_STREAM_REASON_CONNECTREFUSED);
     circuit_detach_stream(circuit_get_by_edge_conn(edge_conn), edge_conn);
     connection_free(conn);
     return;
